@@ -1,0 +1,19 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# Godot
+.godot/
+game/.mono/
+*.translation
+
+# Sim tool output worth keeping goes in tests/, not here
+/failures/
+
+# OS / editor
+.DS_Store
+Thumbs.db
