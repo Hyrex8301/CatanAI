@@ -147,7 +147,7 @@ User decisions: colonist layout; icons drawn in code through the skin layer (no 
 | 7 | Log with icons (done with the look rebuild); toasts moved to step 9 | log text for every event kind, nothing hidden | |
 | 8 | Discard from the hand, robber and victim popup, dev card play flows | modes produce exactly the legal actions | **B2**: a whole game played through the new UI |
 | 9 | Animations: dice, flashing hexes, flying cards, piece pop, robber slide, turn bar | animation queue ordering; game loop waits | **C2**: feels like colonist |
-| 10 | Game-over overlay with standings and dice histogram; menu restyle; manual play-test checklist | VP breakdown, histogram | **D**: M2 sign-off |
+| 10 | Game-over overlay with standings and dice histogram; menu restyle with saved settings; manual play-test checklist (`M2-playtest.md`) | VP breakdown, histogram; settings round trip | **D**: M2 sign-off |
 
 The old checkpoints B–D above are replaced by A2–D.
 

@@ -22,6 +22,31 @@ public sealed record GameOptions
     /// <summary>Developer: draw every seat's hand and dev cards.</summary>
     public bool ShowAllHands { get; init; }
 
+    /// <summary>The settings as saved between sessions (the seed isn't saved: every game gets a new one).</summary>
+    public string ToJson() => System.Text.Json.JsonSerializer.Serialize(this with { Seed = null });
+
+    /// <summary>Saved settings, kept within sensible limits; defaults if the file is missing or damaged.</summary>
+    public static GameOptions FromJson(string? json)
+    {
+        try
+        {
+            var o = json is null ? null : System.Text.Json.JsonSerializer.Deserialize<GameOptions>(json);
+            if (o is null)
+                return new GameOptions();
+            return o with
+            {
+                Seed = null,
+                VpToWin = Math.Clamp(o.VpToWin, 3, 20),
+                BotDelaySeconds = Math.Clamp(o.BotDelaySeconds, 0, 3),
+                ResponseWindowSeconds = Math.Clamp(o.ResponseWindowSeconds, 5, 120),
+            };
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return new GameOptions();
+        }
+    }
+
     /// <summary>Real games don't need the simulation turn cap, and allow 10 offers and edits per turn.</summary>
     public GameSettings ToSettings() => new() { VpToWin = VpToWin, FriendlyRobber = FriendlyRobber, MaxTurns = 10_000, MaxOffersPerTurn = 10 };
 }

@@ -56,6 +56,8 @@ public partial class GameScreen : Control
     private DiscardPanel _discardUi = null!;
     private Animator _animator = null!;
     private AnimationCues _cues = null!;
+    private GameOverScreen _gameOver = null!;
+    private PopupMenu _menu = null!;
     private readonly CardPicker _discard = new();
     private readonly Queue<GameAction> _queued = new();
 
@@ -167,9 +169,14 @@ public partial class GameScreen : Control
         _animator.Setup(_board, Where, new Vector2(BoardRect.GetCenter().X, 14));
         _animator.Finished += () => { if (_countsPending && _view is not null) ShowCounts(_view); };
 
+        _gameOver = new GameOverScreen();
+        _gameOver.NewGame += () => { _quit.Cancel(); GameSession.Resume = null; GetTree().ReloadCurrentScene(); };
+        _gameOver.MainMenu += Leave;
+        AddChild(_gameOver);
+
         Refresh();
         CallDeferred(MethodName.StartGame);
-        DevScreenshot();
+        DevShots.Run(this);
     }
 
     /// <summary>Settings (Save / Main menu) and fullscreen, top left.</summary>
@@ -178,7 +185,18 @@ public partial class GameScreen : Control
         var menu = new PopupMenu();
         menu.AddItem("Save game", 0);
         menu.AddItem("Main menu", 1);
-        menu.IdPressed += id => { if (id == 0) SaveGame(); else Leave(); };
+        menu.AddItem("Game results", 2);
+        menu.SetItemDisabled(2, true);
+        _menu = menu;
+        menu.IdPressed += id =>
+        {
+            if (id == 0)
+                SaveGame();
+            else if (id == 1)
+                Leave();
+            else
+                ShowResults();
+        };
         AddChild(menu);
         var gear = new ActionTile { Position = new Vector2(8, 8), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => Gear(c, at, s) };
         gear.Set(true, "Settings");
@@ -254,6 +272,20 @@ public partial class GameScreen : Control
             GD.PushError(ex.ToString());
         }
         Refresh();
+        if (_runner.IsOver && !_quit.IsCancellationRequested)
+        {
+            // Let the last move's animations and toasts play, then show the results.
+            await ToSignal(GetTree().CreateTimer(1.5), SceneTreeTimer.SignalName.Timeout);
+            ShowResults();
+        }
+    }
+
+    private void ShowResults()
+    {
+        if (!_runner.IsOver || _quit.IsCancellationRequested)
+            return;
+        _menu.SetItemDisabled(2, false);
+        _gameOver.Show(GameOverSummary.From(_runner.State, _runner.Log.For(_setup.HumanSeat)), _setup.Colors, _setup.HumanSeat);
     }
 
     private void OnActionApplied(GameAction action, IReadOnlyList<GameEvent> events)
@@ -627,31 +659,8 @@ public partial class GameScreen : Control
         }
     }
 
-    // ---- Developer screenshots ----
+    // ---- Developer screenshots (see DevShots) ----
 
-    /// <summary>
-    /// Set CATAN_SHOT to a .png path to save a screenshot after CATAN_SHOT_AFTER seconds (default 3) and quit. CATAN_SEED picks
-    /// the game; CATAN_AUTOPLAY=N lets a bot play your seat, without pauses, for the first N actions (to reach mid-game).
-    /// </summary>
-    private async void DevScreenshot()
-    {
-        string? path = System.Environment.GetEnvironmentVariable("CATAN_SHOT");
-        if (string.IsNullOrEmpty(path))
-            return;
-        double after = double.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_AFTER"), out double s) ? s : 3;
-        // CATAN_SHOT_COUNT=N (with "{n}" in the path) takes N shots CATAN_SHOT_EVERY seconds apart, to catch animations.
-        int count = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_COUNT"), out int c) ? c : 1;
-        double every = double.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_EVERY"), out double e) ? e : 0.2;
-        await ToSignal(GetTree().CreateTimer(after), SceneTreeTimer.SignalName.Timeout);
-        for (int n = 0; n < count; n++)
-        {
-            if (n > 0)
-                await ToSignal(GetTree().CreateTimer(every), SceneTreeTimer.SignalName.Timeout);
-            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            GetViewport().GetTexture().GetImage().SavePng(path.Replace("{n}", n.ToString("00")));
-        }
-        GetTree().Quit();
-    }
 
     /// <summary>Plays the human seat with a bot while <see cref="_useBot"/> says so, then hands over to the human.</summary>
     private sealed class AutoplayAgent : IPlayerAgent

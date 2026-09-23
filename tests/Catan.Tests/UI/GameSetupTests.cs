@@ -42,4 +42,17 @@ public class GameSetupTests
         Assert.Equal(10, settings.MaxOffersPerTurn);
         Assert.True(settings.MaxTurns >= 10_000);
     }
+
+    [Fact]
+    public void SettingsSurviveASaveAndStayWithinLimits()
+    {
+        var o = new GameOptions { Seed = 42, VpToWin = 12, FriendlyRobber = true, BotDelaySeconds = 0.2, ResponseWindowSeconds = 30 };
+        var back = GameOptions.FromJson(o.ToJson());
+        Assert.Equal(o with { Seed = null }, back);
+
+        Assert.Equal(new GameOptions(), GameOptions.FromJson("not json"));
+        Assert.Equal(new GameOptions(), GameOptions.FromJson(null));
+        var wild = GameOptions.FromJson("{\"VpToWin\": 99, \"BotDelaySeconds\": -4, \"ResponseWindowSeconds\": 1}");
+        Assert.Equal((20, 0.0, 5.0), (wild.VpToWin, wild.BotDelaySeconds, wild.ResponseWindowSeconds));
+    }
 }
