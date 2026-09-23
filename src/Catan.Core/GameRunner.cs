@@ -11,8 +11,9 @@ namespace Catan.Core;
 public sealed class GameRunner
 {
     private readonly IReadOnlyList<IPlayerAgent> _agents;
-    private readonly IChance _chance;
+    private readonly RecordingChance _chance;
     private readonly bool _validate;
+    private readonly bool _startedFresh;
     private readonly List<GameAction> _legal = new();
     private readonly List<GameEvent> _events = new();
     private readonly List<GameAction> _actions = new();
@@ -25,8 +26,29 @@ public sealed class GameRunner
             throw new ArgumentException($"A game needs {GameConstants.PlayerCount} agents.", nameof(agents));
         State = state;
         _agents = agents;
-        _chance = chance;
+        _chance = new RecordingChance(chance);
         _validate = validate;
+        _startedFresh = state.ComputeHash() == new GameState(state.Board, state.Settings).ComputeHash();
+    }
+
+    /// <summary>
+    /// The game so far as a record that replays to the current state. Only for games started from a new game
+    /// (a record stores the board and settings, not an arbitrary starting position).
+    /// </summary>
+    public GameRecord ToRecord(ulong? seed = null)
+    {
+        if (!_startedFresh)
+            throw new InvalidOperationException("Only games started from a new GameState can be recorded.");
+        return new GameRecord
+        {
+            Seed = seed,
+            Settings = State.Settings,
+            Board = State.Board.ToLayout(),
+            Players = _agents.Select(a => a.Name).ToArray(),
+            Actions = _actions.ToArray(),
+            Chance = _chance.Log.ToArray(),
+            FinalHash = GameRecord.HashText(State.ComputeHash()),
+        };
     }
 
     public GameState State { get; }
@@ -36,6 +58,9 @@ public sealed class GameRunner
     public IReadOnlyList<GameAction> Actions => _actions;
 
     public bool IsOver => State.Phase == Phase.GameOver;
+
+    /// <summary>Raised after each action is applied (and validated), with the events it produced.</summary>
+    public event Action<GameAction, IReadOnlyList<GameEvent>>? ActionApplied;
 
     /// <summary>Plays until the game ends.</summary>
     public async Task RunAsync(CancellationToken ct = default)
@@ -116,6 +141,7 @@ public sealed class GameRunner
             if (errors.Count > 0)
                 throw new StateViolationException(_actions.Count, action, errors);
         }
+        ActionApplied?.Invoke(action, _events);
     }
 }
 

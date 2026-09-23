@@ -14,7 +14,9 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–13 done**, checkpoints A, B and C passed. Next is step 14: `GameRecord` save/load (JSON), `RecordingChance`, `ReplayChance`, replay to the identical hash, and the Determinism tests.
+- **M1 (rules engine): steps 1–14 done**, checkpoints A, B and C passed. Next is step 15: `RandomBot` (Catan.AI), the Sim CLI (`random` / `replay` / `bench`), a 100k-game fuzz run, then **checkpoint D** (M1 sign-off).
+- Records: `GameRunner` wraps its chance in `RecordingChance`; `runner.ToRecord(seed)` → `GameRecord` (JSON via `ToJson` / `FromJson`); `record.Replay(stopAfter, validate)` reports the first bad action or a hash mismatch. `ReplayChance` reads dice / steals / draws from separate queues.
+- **Every `.json` under `tests/Catan.Tests/Records/` is replayed by `RecordTests.SavedRecordStillReplays`.** `golden/` holds 3 full random games (regenerate only on purpose with `CATAN_WRITE_GOLDEN=1`, never to hide a failure: a failing golden replay means old saves broke). Sim failures that get fixed are copied in here as permanent regression tests.
 - Agents only ever get a `PlayerView` (a copy; `PlayerViewTests` prove it leaks nothing). View-based helpers for bots: `Rules.RandomDiscard(view, rng)`, `RandomTradeOffer(view, rng)`, `RandomEditOffer(view, rng)`, `RandomCounterOffer(view, rng)`. `DevCardBought.Type` is nullable (null = hidden); `CardStolen.Resource` is -1 when hidden.
 - Trade offers, edits and counters, like discards, are never in the legal list; `Rules.RandomTradeOffer` / `RandomEditOffer` / `RandomCounterOffer` build random valid ones.
 

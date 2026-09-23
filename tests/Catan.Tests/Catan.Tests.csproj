@@ -18,6 +18,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Saved game records replayed by RecordTests: golden games and fixed Sim failures. -->
+  <ItemGroup>
+    <None Include="Records\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Catan.Core\Catan.Core.csproj" />
     <ProjectReference Include="..\..\src\Catan.AI\Catan.AI.csproj" />
