@@ -13,14 +13,15 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–2 done** (enums, `ResourceSet`, `Costs`, `Topology`). **At checkpoint A**, waiting for review before step 3 (PCG32 `Rng`, `RngChance`, `ScriptedChance`).
+- **M1 (rules engine): steps 1–3 done**, checkpoint A passed. Next is step 4: `BoardGenerator` (Random, Balanced, JSON) and the board-generation tests.
 - Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based in code (the brief's rows 1–9 are spots 0–8).
 - Update this section when a step or checkpoint is finished.
 
 ## Workflow
 
 - Build M1 in the brief's 15 steps, writing each step's tests with it (the brief's "Tests with it" column and Test plan table).
-- **Stop at checkpoints A (after step 2), B (after 8), C (after 11) and D (after 15)** so the plan's author can review before continuing. Don't start the next step past a checkpoint until the user says the review is done.
+- **Stop at checkpoints A (after step 2), B (after 8), C (after 11) and D (after 15)** for review. The user is the only person on the project and does the reviews. Summarize what to check (choices the brief left open, edge cases), and don't start the next step until the user approves.
+- `game/scripts/TopologyView.cs` draws hex, vertex, edge and harbor ids in Godot (keys H / V / E / P); handy for picking ids in tests.
 - Every rules bullet in the brief should end up as at least one test.
 
 ## Layout
