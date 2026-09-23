@@ -1,6 +1,6 @@
 # CatanAI
 
-A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a Godot front end. The plans are **[docs/M1-brief.md](docs/M1-brief.md)** (engine: ids, rules, APIs, tests) and **[docs/M2-brief.md](docs/M2-brief.md)** (playable Godot UI). Read the relevant one before working on a milestone.
+A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a Godot front end. The plans are **[docs/M1-brief.md](docs/M1-brief.md)** (engine: ids, rules, APIs, tests), **[docs/M2-brief.md](docs/M2-brief.md)** (playable Godot UI) and **[docs/M3-brief.md](docs/M3-brief.md)** (smart bots, overnight training). Read the relevant one before working on a milestone.
 
 ## Git and commit rules
 
@@ -16,6 +16,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
 - **M1 (rules engine): signed off 2026-09-22** (all 15 steps, checkpoints A–D). M1 can still change later; tests, golden records and CI fuzz guard it.
 - **M2 (playable Godot UI): in progress**, plan in `docs/M2-brief.md` (written by Claude, approved by the user; the original brief only covered M0/M1). Steps 1–3 done plus the gap fill (2026-09-22): a full game is playable against RandomBots with plain controls: board clicks, buttons, a discard picker, a colonist-style trade panel (offers, edits, counters, answers), save / autosave / continue / load (`GameRunner.Resume`; dice after a resume are seeded from the save point). **Paused by the user's choice** to start M3 (smart bots); the friendly-UI steps (4–12 of the M2 brief) come back later. Checkpoints B (after 6), C (after 9), D (after 12). The user wants it working first; art changes come later.
+- **M3 (smart bots + overnight training): in progress** (plan approved 2026-09-22). Goal for the first night: a SmartBot with turn planning and a self-play trainer running. Decisions: strongest only (no difficulty levels); training uses all but 2 threads; smart-vs-smart self-play with a pool of past champions; ISMCTS multi-turn search is the next milestone.
 - M2 decisions: flat drawn style now, sprite / texture art pass after M2 (draw through a `BoardSkin` so it's a drop-in swap); 1600×900 window; human seat and color random each game (color preference later); bot delay 0.5 s, 20 s response window for bot offers.
 - M1 done-when, as of 2026-09-22: 100,000 validated RandomBot games with 0 violations (plus 100,000 pure-random, also 0); every saved record replays to its hash; all tests pass.
 - **Bench baseline** (2026-09-22, Ryzen 7 5800X, 16 threads, `bench --seconds 10`, no validation): **1,136 games/s, 1.04M actions/s**, avg 271.5 turns, 3.3% turn-cap draws. Compare later milestones against this.
