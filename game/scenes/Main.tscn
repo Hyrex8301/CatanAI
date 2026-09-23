@@ -1,17 +1,10 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
-[ext_resource type="Script" path="res://scripts/TopologyView.cs" id="2_topology"]
+[ext_resource type="Script" path="res://scripts/DebugView.cs" id="2_debug"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 
-[node name="TopologyView" type="Node2D" parent="."]
-script = ExtResource("2_topology")
-
-[node name="Label" type="Label" parent="."]
-offset_left = 40.0
-offset_top = 40.0
-offset_right = 600.0
-offset_bottom = 80.0
-text = "Build the C# project, then press Play"
+[node name="DebugView" type="Node2D" parent="."]
+script = ExtResource("2_debug")
