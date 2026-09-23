@@ -1,9 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.cs" id="1_main"]
+[ext_resource type="Script" path="res://scripts/TopologyView.cs" id="2_topology"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="TopologyView" type="Node2D" parent="."]
+script = ExtResource("2_topology")
 
 [node name="Label" type="Label" parent="."]
 offset_left = 40.0
