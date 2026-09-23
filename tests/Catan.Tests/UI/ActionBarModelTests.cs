@@ -69,6 +69,25 @@ public class ActionBarModelTests
     }
 
     [Fact]
+    public void QuickBuildsAreEveryLegalBuildInMainAndNothingElse()
+    {
+        var s = new StateBuilder(TestBoards.Standard).Phase(Phase.Main, current: 0, hasRolled: true)
+            .Settlement(0, Topology.Vertex(0, 0, Corner.N)).Road(0, Topology.EdgeBetween(Topology.Vertex(0, 0, Corner.N), Topology.Vertex(0, 0, Corner.NE)))
+            .Hand(0, brick: 1, lumber: 1).Build();
+        var legal = new List<GameAction>();
+        Rules.GetLegalActions(s, 0, legal);
+        var quick = ActionBarModel.QuickBuilds(PlayerView.From(s, 0), legal).ToList();
+        Assert.NotEmpty(quick);
+        Assert.All(quick, a => Assert.Equal(ActionType.BuildRoad, a.Type)); // a wood and a brick: roads only
+        Assert.Equal(legal.Count(a => a.Type == ActionType.BuildRoad), quick.Count);
+        Assert.Equal(PieceType.Road, ActionBarModel.PieceOf(quick[0]));
+
+        var setup = new GameState(TestBoards.Standard);
+        Rules.GetLegalActions(setup, legal);
+        Assert.Empty(ActionBarModel.QuickBuilds(PlayerView.From(setup, 0), legal)); // setup already highlights its spots
+    }
+
+    [Fact]
     public void SetupAndRobberHighlightEveryLegalSpotWithoutAMode()
     {
         var s = new GameState(TestBoards.Standard);

@@ -9,7 +9,7 @@ using Godot;
 public partial class DiceView : Control
 {
     public const float Die = 56, Gap = 10;
-    private const double TumbleSeconds = 0.55;
+    public const double TumbleSeconds = 0.35;
 
     private RollShown? _roll;
     private bool _enabled, _hover;

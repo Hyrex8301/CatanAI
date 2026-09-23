@@ -81,6 +81,28 @@ public static class ActionBarModel
         }
     }
 
+    /// <summary>
+    /// Builds you can make by clicking the board without picking a build button first: in your Main phase, every legal
+    /// road, settlement and city (the engine only lists them when you can pay and the spot is free). The first click shows a
+    /// preview of the piece, the second click on the same spot builds it.
+    /// </summary>
+    public static IEnumerable<GameAction> QuickBuilds(PlayerView v, IReadOnlyList<GameAction> legal)
+    {
+        if (v.Phase != Phase.Main)
+            yield break;
+        foreach (var a in legal)
+            if (a.Type is ActionType.BuildRoad or ActionType.BuildSettlement or ActionType.BuildCity)
+                yield return a;
+    }
+
+    /// <summary>The piece a build action places.</summary>
+    public static PieceType PieceOf(GameAction a) => a.Type switch
+    {
+        ActionType.BuildRoad => PieceType.Road,
+        ActionType.BuildSettlement => PieceType.Settlement,
+        _ => PieceType.City,
+    };
+
     /// <summary>The build mode a bar button selects, if any.</summary>
     public static BuildMode ModeOf(BarItem item) => item switch
     {

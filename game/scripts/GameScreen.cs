@@ -61,13 +61,16 @@ public partial class GameScreen : Control
 
     private PlayerView? _view;
     private BuildMode _mode;
-    private bool _tradeOpen, _shownOnce;
+    private bool _tradeOpen, _shownOnce, _countsPending;
     private int _loggedEvents;
     private (int Player, int Turn) _turnKey = (-1, -1);
     private DateTime _turnStarted = DateTime.UtcNow;
 
     /// <summary>When a board click matches several legal actions (e.g. two players to rob), they're offered as buttons.</summary>
     private List<GameAction>? _choices;
+
+    /// <summary>Click-to-build: the build clicked once (its shadow shows on the board); clicking the same spot again builds it.</summary>
+    private GameAction? _pending;
 
     /// <summary>Developer screenshots: the human seat is played by a bot until this many actions have been applied.</summary>
     private int _autoplayActions;
@@ -162,6 +165,7 @@ public partial class GameScreen : Control
         _animator = new Animator();
         AddChild(_animator);
         _animator.Setup(_board, Where, new Vector2(BoardRect.GetCenter().X, 14));
+        _animator.Finished += () => { if (_countsPending && _view is not null) ShowCounts(_view); };
 
         Refresh();
         CallDeferred(MethodName.StartGame);
@@ -291,7 +295,9 @@ public partial class GameScreen : Control
     {
         if (!@event.IsActionPressed("ui_cancel"))
             return;
-        if (_choices is not null)
+        if (_pending is not null)
+            ClearPending();
+        else if (_choices is not null)
             _choices = null;
         else if (_devPopup.Visible)
             _devPopup.Close();
@@ -316,9 +322,16 @@ public partial class GameScreen : Control
         _log.AddNote($"Saved as {System.IO.Path.GetFileNameWithoutExtension(path)}.");
     }
 
+    private void ClearPending()
+    {
+        _pending = null;
+        _board.SetPending(BoardHit.None);
+    }
+
     private void OnPromptChanged()
     {
         _choices = null;
+        ClearPending();
         _mode = BuildMode.None;
         _discard.Clear();
         Refresh();
@@ -346,13 +359,9 @@ public partial class GameScreen : Control
             _turnStarted = DateTime.UtcNow;
         }
         _board.Show(view, _setup.Colors);
-        _bank.Show(view);
-        for (int seat = 0; seat < GameConstants.PlayerCount; seat++)
-            _playerCards[seat].Show(HudModel.Seat(view, seat, _setup.Colors));
         bool discarding = _human.Prompt is { IsOptional: false } && view.Phase == Phase.Discard;
         if (discarding)
             _discard.SetLimits(view.Hand, view.DiscardOwed[_setup.HumanSeat]);
-        _hand.Update(HudModel.Hand(view, discarding ? _discard.Cards : default));
 
         var seen = _runner.Log.For(_setup.HumanSeat);
         bool newRoll = false;
@@ -379,9 +388,18 @@ public partial class GameScreen : Control
         ShowDice(view, legal, newRoll && _shownOnce);
         if (animate)
             _animator.Play(cues);
+        // Hands, player rows and the bank change when the flying cards land, not before.
+        if (_animator.Busy)
+            _countsPending = true;
+        else
+            ShowCounts(view);
         _shownOnce = true;
         _board.SetTargets(legal is null ? Array.Empty<BoardHit>()
             : ActionBarModel.BoardActions(_mode, view, legal).Select(TargetOf).Distinct());
+        var quick = legal is null || _mode != BuildMode.None ? new List<GameAction>() : ActionBarModel.QuickBuilds(view, legal).ToList();
+        if (_pending is { } p && !quick.Contains(p))
+            ClearPending();
+        _board.SetQuickTargets(quick.Select(a => (TargetOf(a), ActionBarModel.PieceOf(a))), Ui.SeatColor(_setup.HumanColor));
 
         _discardUi.Show(discarding, view.DiscardOwed[_setup.HumanSeat]);
         _victims.Show(legal is null ? null : _choices, view, Submit);
@@ -404,6 +422,17 @@ public partial class GameScreen : Control
         _dice.Position = new Vector2(LogRect.Position.X - _dice.Size.X - 4, Math.Min(y, StatusRect.Position.Y - _dice.Size.Y - 4));
         _dice.Set(rollState.Enabled, rollState.Tooltip);
         _dice.Show(rollState.Enabled ? null : roll, roll is null ? "" : $"{_text.Seat(roll.Seat)} rolled {roll.Total}", animate);
+    }
+
+    /// <summary>Your hand, the player rows and the bank (held back while cards are still flying).</summary>
+    private void ShowCounts(PlayerView view)
+    {
+        _countsPending = false;
+        _bank.Show(view);
+        for (int seat = 0; seat < GameConstants.PlayerCount; seat++)
+            _playerCards[seat].Show(HudModel.Seat(view, seat, _setup.Colors));
+        bool discarding = _human.Prompt is { IsOptional: false } && view.Phase == Phase.Discard;
+        _hand.Update(HudModel.Hand(view, discarding ? _discard.Cards : default));
     }
 
     /// <summary>Screen points for flying cards: a hex's center, a bot's avatar, your hand, or the bank row.</summary>
@@ -439,7 +468,8 @@ public partial class GameScreen : Control
                 BuildMode.Road => ("Place Road", "Click a highlighted edge (Esc to cancel)."),
                 BuildMode.Settlement => ("Place Settlement", "Click a highlighted corner (Esc to cancel)."),
                 BuildMode.City => ("Place City", "Click one of your settlements (Esc to cancel)."),
-                _ => ("Your Turn", "Build, trade, play a card, or end your turn (Space)."),
+                _ when _pending is { } p => ($"Click Again: {ActionBarModel.PieceOf(p)}", $"Click the same spot again to build your {ActionBarModel.PieceOf(p).ToString().ToLowerInvariant()}, or Esc to cancel."),
+                _ => ("Your Turn", "Build (click a spot on the board, or a build button), trade, play a card, or end your turn (Space)."),
             },
             Phase.Discard => ($"Discard {v.DiscardOwed[_setup.HumanSeat]} Cards", "A 7 was rolled and you hold more than 7 cards: click cards in your hand to pick them."),
             Phase.MoveRobber => ("Move the Robber", "Click a highlighted hex."),
@@ -457,6 +487,7 @@ public partial class GameScreen : Control
         switch (item)
         {
             case BarItem.Trade:
+                ClearPending();
                 if (_tradeOpen)
                     CloseProposal();
                 else
@@ -465,6 +496,7 @@ public partial class GameScreen : Control
                 Refresh();
                 break;
             case BarItem.Road or BarItem.Settlement or BarItem.City:
+                ClearPending();
                 var mode = ActionBarModel.ModeOf(item);
                 _mode = _mode == mode ? BuildMode.None : mode;
                 CloseProposal();
@@ -507,6 +539,24 @@ public partial class GameScreen : Control
         else if (matches.Count > 1)
         {
             _choices = matches;
+            Refresh();
+        }
+        else if (_mode == BuildMode.None && ActionBarModel.QuickBuilds(_view, prompt.Legal).Where(a => TargetOf(a) == hit).ToList() is [var quick])
+        {
+            // Click-to-build: the first click shows a shadow of the piece, a second click on the same spot builds it.
+            if (_pending == quick)
+                Submit(quick);
+            else
+            {
+                _pending = quick;
+                _board.SetPending(hit);
+                CloseProposal();
+                Refresh();
+            }
+        }
+        else if (_pending is not null)
+        {
+            ClearPending();
             Refresh();
         }
     }

@@ -16,6 +16,11 @@ public partial class Animator : Control
 
     private readonly List<(int Resource, Vector2 From, Vector2 To, double Start)> _flights = new();
     private readonly List<(string Text, double Start)> _toasts = new();
+    private readonly List<(double At, Action Run)> _scheduled = new();
+    private bool _wasBusy;
+
+    /// <summary>Raised when the last card has landed (the screen then updates hands and counts).</summary>
+    public event Action? Finished;
     private BoardView _board = null!;
     private Func<Spot, Vector2> _where = _ => Vector2.Zero;
     private Vector2 _toastAt;
@@ -45,9 +50,12 @@ public partial class Animator : Control
             switch (cue)
             {
                 case FlashNumber f:
-                    _board.Flash(f.Number);
+                    // Wait for the dice to stop tumbling, light up the hexes, then send the cards.
+                    start += DiceView.TumbleSeconds;
+                    int number = f.Number;
+                    _scheduled.Add((start, () => _board.Flash(number)));
                     Hold(start + BoardSeconds);
-                    start += 0.25; // cards leave the hexes once they've lit up
+                    start += 0.35;
                     break;
                 case FlyCard f:
                     _flights.Add((f.Resource, _where(f.From), _where(f.To), start));
@@ -75,7 +83,15 @@ public partial class Animator : Control
     public override void _Process(double delta)
     {
         double now = Now;
+        foreach (var job in _scheduled.FindAll(j => now >= j.At))
+        {
+            _scheduled.Remove(job);
+            job.Run();
+        }
         _flights.RemoveAll(f => now > f.Start + FlySeconds);
+        if (_wasBusy && !Busy)
+            Finished?.Invoke();
+        _wasBusy = Busy;
         _toasts.RemoveAll(t => now > t.Start + ToastSeconds);
         bool active = _flights.Count > 0 || _toasts.Count > 0;
         if (active || _drew)

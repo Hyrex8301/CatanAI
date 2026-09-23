@@ -50,12 +50,58 @@ public partial class BoardView : Node2D
         _slideStart = Time.GetTicksMsec() / 1000.0;
     }
 
+    // Click-to-build: spots you can build on right now (with the piece each would get), a faint shadow of the piece under
+    // the mouse, and a stronger one on the spot you clicked once (click it again to build).
+    private readonly Dictionary<BoardHit, PieceType> _quick = new();
+    private BoardHit _pending = BoardHit.None;
+    private Color _ghostColor = Colors.White;
+    private GhostLayer _hoverGhost = null!, _pendingGhost = null!;
+
+    public override void _Ready()
+    {
+        _hoverGhost = new GhostLayer { Modulate = new Color(1, 1, 1, 0.4f), DrawFn = c => Ghost(c, _hover) };
+        _pendingGhost = new GhostLayer { DrawFn = c => Ghost(c, _pending) };
+        AddChild(_hoverGhost);
+        AddChild(_pendingGhost);
+    }
+
+    public void SetQuickTargets(IEnumerable<(BoardHit Hit, PieceType Piece)> targets, Color color)
+    {
+        _quick.Clear();
+        foreach (var (hit, piece) in targets)
+            _quick[hit] = piece;
+        _ghostColor = color;
+        _hoverGhost.QueueRedraw();
+    }
+
+    /// <summary>The spot clicked once, showing a strong shadow of its piece (BoardHit.None clears it).</summary>
+    public void SetPending(BoardHit hit)
+    {
+        _pending = hit;
+        _pendingGhost.QueueRedraw();
+    }
+
+    private void Ghost(CanvasItem c, BoardHit hit)
+    {
+        if (!_quick.TryGetValue(hit, out var piece) || (c == _hoverGhost && hit == _pending))
+            return;
+        float size = (float)_geometry.Size;
+        if (piece == PieceType.Road)
+            Skin.Road(c, Vertex(Topology.EdgeVertices[hit.Id, 0]), Vertex(Topology.EdgeVertices[hit.Id, 1]), size, _ghostColor);
+        else if (piece == PieceType.Settlement)
+            Skin.Settlement(c, Vertex(hit.Id), size, _ghostColor);
+        else
+            Skin.City(c, Vertex(hit.Id), size, _ghostColor);
+    }
+
     /// <summary>A hex's center on screen (for cards flying from it).</summary>
     public Vector2 HexCenter(int hex) => Hex(hex) + Position;
 
     public override void _Process(double delta)
     {
         double now = Time.GetTicksMsec() / 1000.0;
+        if (_pending.Kind != HitKind.None)
+            _pendingGhost.Modulate = new Color(1, 1, 1, 0.6f + 0.25f * Mathf.Sin((float)now * 6)); // a gentle pulse
         if (now - _flashStart < FlashSeconds || now - _slideStart < SlideSeconds || _pops.Count > 0)
             QueueRedraw();
         foreach (var (hit, start) in _pops.ToArray()) // a copy: finished pops are removed
@@ -94,11 +140,12 @@ public partial class BoardView : Node2D
         if (@event is InputEventMouseMotion)
         {
             var hit = HitAtMouse();
-            if (HoverTargetsOnly && !_targets.Contains(hit))
+            if (HoverTargetsOnly && !_targets.Contains(hit) && !_quick.ContainsKey(hit))
                 hit = BoardHit.None;
             if (hit != _hover)
             {
                 _hover = hit;
+                _hoverGhost.QueueRedraw();
                 QueueRedraw();
             }
         }
@@ -193,7 +240,7 @@ public partial class BoardView : Node2D
 
         foreach (var target in _targets)
             Highlight(target, hover: false, size);
-        if (_hover.Kind != HitKind.None)
+        if (_hover.Kind != HitKind.None && !_quick.ContainsKey(_hover))
             Highlight(_hover, hover: true, size);
     }
 
@@ -228,4 +275,12 @@ public partial class BoardView : Node2D
             corners[c] = Vertex(Topology.HexVertices[h, c]);
         return corners;
     }
+}
+
+/// <summary>A layer drawn above the board with its own transparency (for the shadow pieces of click-to-build).</summary>
+public partial class GhostLayer : Node2D
+{
+    public Action<CanvasItem>? DrawFn { get; set; }
+
+    public override void _Draw() => DrawFn?.Invoke(this);
 }
