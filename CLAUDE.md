@@ -13,7 +13,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–8 done**, checkpoint A passed. **At checkpoint B** (first full turn loop), waiting for the user's review before step 9 (Discard, MoveRobber, steal, friendly robber).
+- **M1 (rules engine): steps 1–9 done**, checkpoints A and B passed. Next is step 10: all five dev cards and their timing rules (Knight also moves the robber; any card may be played before rolling).
+- Discards are never in the legal list (the brief's rule): agents build them, `Rules.RandomDiscard` builds a random valid one, `TestPlay.RandomAction` handles it in tests.
 - The Longest Road award (`Rules.Awards.cs`) landed in step 8, because random games reach 5 roads and the validator checks the holder. Step 11 adds the FAQ cut-case tests, Largest Army and the win check. Until then games only end at `MaxTurns` (counted across all seats).
 - A rolled 7 currently just skips production and goes to Main (`SevenSkipsProductionForNow` test); step 9 replaces this with discards and the robber.
 - `Rules` is split into partial files by area (`Rules.cs` shared API and helpers, `Rules.Setup.cs`, ...). `Apply` assumes legality (fast path for search); `ApplyChecked` validates first. Events (`GameAction.cs`) are emitted as each rule is written; step 13 adds redaction.
@@ -28,7 +29,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 
 - Build M1 in the brief's 15 steps, writing each step's tests with it (the brief's "Tests with it" column and Test plan table).
 - **Stop at checkpoints A (after step 2), B (after 8), C (after 11) and D (after 15)** for review. The user is the only person on the project and does the reviews. Summarize what to check (choices the brief left open, edge cases), and don't start the next step until the user approves.
-- `game/scripts/TopologyView.cs` draws hex, vertex, edge and harbor ids in Godot (keys H / V / E / P); handy for picking ids in tests.
+- `game/scripts/DebugView.cs` is the M1 debug viewer: plays random legal moves on a real `GameState` (Space step, A autoplay, +/- speed, N new game), shows every seat's full state and recent events, runs `StateValidator` after each move, and can overlay hex / vertex / edge / harbor ids (H / V / E / P). Keep it working as rules are added (describe new events, handle new phases).
+- In Godot scripts, `Resource` is ambiguous with `Godot.Resource`: write `Catan.Core.Resource`.
 - Every rules bullet in the brief should end up as at least one test.
 
 ## Layout

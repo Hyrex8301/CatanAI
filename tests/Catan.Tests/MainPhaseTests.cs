@@ -272,36 +272,16 @@ public class MainPhaseTests
             int actions = 0;
             while (s.Phase != Phase.GameOver)
             {
-                Rules.GetLegalActions(s, legal);
-                Assert.NotEmpty(legal);
-                if (actions % 25 == 0)
-                    AssertListMatchesIsLegal(s, legal);
+                var action = TestPlay.RandomAction(s, legal, rng);
+                if (actions % 25 == 0 || s.Phase == Phase.MoveRobber)
+                    TestPlay.AssertListMatchesIsLegal(s, legal);
 
-                Rules.ApplyChecked(s, legal[rng.NextInt(legal.Count)], chance);
+                Rules.ApplyChecked(s, action, chance);
                 actions++;
                 var errors = StateValidator.Check(s);
                 Assert.True(errors.Count == 0, $"seed {seed}, action {actions}: {string.Join(" | ", errors)}");
             }
             Assert.Equal(201, s.TurnNumber);
         }
-    }
-
-    private static void AssertListMatchesIsLegal(GameState s, List<GameAction> legal)
-    {
-        var listed = legal.ToHashSet();
-        int seat = Rules.ActingSeat(s);
-        var candidates = new List<GameAction>
-        {
-            new(ActionType.RollDice, seat), new(ActionType.BuyDevCard, seat), new(ActionType.EndTurn, seat),
-        };
-        for (int e = 0; e < EdgeCount; e++)
-            candidates.Add(new(ActionType.BuildRoad, seat, e));
-        for (int v = 0; v < VertexCount; v++)
-        {
-            candidates.Add(new(ActionType.BuildSettlement, seat, v));
-            candidates.Add(new(ActionType.BuildCity, seat, v));
-        }
-        foreach (var a in candidates)
-            Assert.True(listed.Contains(a) == Rules.IsLegal(s, a, out string reason), $"{a} listed={listed.Contains(a)} but IsLegal says: {reason}");
     }
 }

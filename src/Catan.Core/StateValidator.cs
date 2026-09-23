@@ -221,6 +221,15 @@ public static class StateValidator
             errors.Add($"Invalid Winner {s.Winner}.");
         if (!Enum.IsDefined(s.Phase))
             errors.Add($"Invalid Phase {(int)s.Phase}.");
+
+        int owed = s.DiscardOwed.Sum();
+        if (s.Phase == Phase.Discard && owed == 0)
+            errors.Add("Phase is Discard but nobody owes a discard.");
+        if (s.Phase != Phase.Discard && owed > 0)
+            errors.Add($"Discards are owed outside the Discard phase ({s.Phase}).");
+        for (int seat = 0; seat < Seats; seat++)
+            if (s.DiscardOwed[seat] > s.HandSize(seat))
+                errors.Add($"Seat {seat} owes {s.DiscardOwed[seat]} discards but holds {s.HandSize(seat)} cards.");
     }
 
     /// <summary>The seat with the strictly highest value, if that value is at least <paramref name="minimum"/>; else -1.</summary>

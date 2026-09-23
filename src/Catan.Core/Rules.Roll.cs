@@ -25,10 +25,13 @@ public static partial class Rules
         s.HasRolled = true;
         events?.Add(new DiceRolled(a.Seat, d1, d2));
 
-        // Until sevens are implemented (step 9), a 7 just skips production.
-        if (roll != 7)
+        if (roll == 7)
+            StartSeven(s);
+        else
+        {
             Produce(s, roll, events);
-        s.Phase = Phase.Main;
+            s.Phase = Phase.Main;
+        }
     }
 
     /// <summary>

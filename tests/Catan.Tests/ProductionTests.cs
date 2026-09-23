@@ -93,11 +93,10 @@ public class ProductionTests
     }
 
     [Fact]
-    public void SevenSkipsProductionForNow()
+    public void SevenProducesNothing()
     {
-        // Until step 9: no discards or robber, and nothing produced.
         var s = Roll(OnHillsSix().Build(), 7);
-        Assert.Equal(Phase.Main, s.Phase);
+        Assert.Equal(Phase.MoveRobber, s.Phase);
         Assert.Equal(0, s.HandSize(0) + s.HandSize(1));
     }
 
@@ -153,10 +152,7 @@ public class ProductionTests
             var chance = new RngChance(rng);
             var s = new GameState(BoardGenerator.Balanced(rng));
             while (s.Phase != Phase.Main)
-            {
-                Rules.GetLegalActions(s, legal);
-                Rules.ApplyChecked(s, legal[rng.NextInt(legal.Count)], chance);
-            }
+                Rules.ApplyChecked(s, TestPlay.RandomAction(s, legal, rng), chance);
             var errors = StateValidator.Check(s);
             Assert.True(errors.Count == 0, $"seed {seed}: {string.Join(" | ", errors)}");
             Assert.InRange(s.LastRoll, 2, 12);

@@ -22,6 +22,14 @@ public sealed record DiceRolled(int Seat, int D1, int D2) : GameEvent
 /// <summary>Cards a seat received from the bank (setup payout or a roll).</summary>
 public sealed record ResourcesProduced(int Seat, ResourceSet Gained) : GameEvent;
 
+/// <summary>Discards go face up.</summary>
+public sealed record Discarded(int Seat, ResourceSet Cards) : GameEvent;
+
+public sealed record RobberMoved(int Seat, int Hex) : GameEvent;
+
+/// <summary>Resource is a resource index. Hidden from seats other than thief and victim in step 13 (shown as -1).</summary>
+public sealed record CardStolen(int Thief, int Victim, int Resource) : GameEvent;
+
 /// <summary>Hidden from other seats in step 13: they see Type as unknown.</summary>
 public sealed record DevCardBought(int Seat, DevCardType Type) : GameEvent;
 
