@@ -31,6 +31,20 @@ public static partial class Rules
         events?.Add(new AwardChanged(Award.LongestRoad, holder, next));
     }
 
+    /// <summary>
+    /// The current seat wins the moment its total VP (hidden VP cards included) reaches the target. Only the current seat:
+    /// a seat that reaches the target on someone else's turn wins at the start of its own next turn.
+    /// </summary>
+    private static bool TryWin(GameState s, List<GameEvent>? events)
+    {
+        if (s.Phase == Phase.GameOver || s.TotalVP(s.CurrentPlayer) < s.Settings.VpToWin)
+            return false;
+        s.Winner = s.CurrentPlayer;
+        s.Phase = Phase.GameOver;
+        events?.Add(new GameEnded(s.Winner));
+        return true;
+    }
+
     public const int LargestArmyMinimum = 3;
 
     /// <summary>

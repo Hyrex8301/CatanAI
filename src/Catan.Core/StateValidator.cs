@@ -219,6 +219,15 @@ public static class StateValidator
             errors.Add($"Invalid CurrentPlayer {s.CurrentPlayer}.");
         if (s.Winner is < -1 or >= Seats)
             errors.Add($"Invalid Winner {s.Winner}.");
+        else if (s.Winner >= 0)
+        {
+            if (s.Phase != Phase.GameOver)
+                errors.Add($"Seat {s.Winner} won but the phase is {s.Phase}.");
+            if (s.TotalVP(s.Winner) < s.Settings.VpToWin)
+                errors.Add($"Seat {s.Winner} won with only {s.TotalVP(s.Winner)} VP.");
+        }
+        if (s.Phase != Phase.GameOver && s.CurrentPlayer is >= 0 and < Seats && s.TotalVP(s.CurrentPlayer) >= s.Settings.VpToWin)
+            errors.Add($"Seat {s.CurrentPlayer} has {s.TotalVP(s.CurrentPlayer)} VP on its own turn but the game isn't over.");
         if (!Enum.IsDefined(s.Phase))
             errors.Add($"Invalid Phase {(int)s.Phase}.");
 

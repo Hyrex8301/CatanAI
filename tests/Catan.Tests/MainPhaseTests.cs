@@ -281,7 +281,7 @@ public class MainPhaseTests
                 var errors = StateValidator.Check(s);
                 Assert.True(errors.Count == 0, $"seed {seed}, action {actions}: {string.Join(" | ", errors)}");
             }
-            Assert.Equal(201, s.TurnNumber);
+            Assert.True(s.Winner >= 0 || s.TurnNumber == 201);
         }
     }
 }

@@ -172,6 +172,9 @@ public static partial class Rules
         s.TurnNumber++;
         s.Phase = Phase.PreRoll;
 
+        // Start of the next seat's turn: it wins now if it reached the target during someone else's turn.
+        if (TryWin(s, events))
+            return;
         if (s.TurnNumber > s.Settings.MaxTurns)
         {
             s.Phase = Phase.GameOver;

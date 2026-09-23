@@ -278,7 +278,9 @@ public partial class DebugView : Node2D
         Line($"Seed {_seed}   actions {_actions}", PanelText);
         Line($"Turn {s.TurnNumber}   {s.Phase}", PanelText, 17);
         int acting = Rules.ActingSeat(s);
-        Line(acting >= 0 ? $"To act: {SeatNames[acting]}" + (s.HasRolled ? $"   rolled {s.LastRoll}" : "") : "Game over", PanelText);
+        string status = acting >= 0 ? $"To act: {SeatNames[acting]}" + (s.HasRolled ? $"   rolled {s.LastRoll}" : "")
+            : s.Winner >= 0 ? $"{SeatNames[s.Winner]} wins with {s.TotalVP(s.Winner)} VP!" : "Draw at the turn cap";
+        Line(status, acting < 0 && s.Winner >= 0 ? SeatColors[s.Winner] * 0.7f : PanelText, acting >= 0 ? 15 : 18);
         Line($"Bank  B{s.Bank[0]} L{s.Bank[1]} W{s.Bank[2]} G{s.Bank[3]} O{s.Bank[4]}   dev deck {s.DevDeck.Sum()}", PanelText);
         y += 8;
 

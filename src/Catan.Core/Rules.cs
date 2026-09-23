@@ -80,6 +80,7 @@ public static partial class Rules
             case ActionType.PlayMonopoly: ApplyPlayMonopoly(s, a, events); break;
             default: throw new InvalidOperationException($"{a.Type} isn't implemented yet.");
         }
+        TryWin(s, events);
     }
 
     /// <summary>Validates, then applies. Throws <see cref="InvalidOperationException"/> with the reason if illegal.</summary>

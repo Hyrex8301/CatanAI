@@ -13,7 +13,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–10 done**, checkpoints A and B passed. Next is step 11: Longest Road FAQ cut cases, Largest Army, VP and the win check (winning only on your own turn), then **checkpoint C**.
+- **M1 (rules engine): steps 1–11 done**, checkpoints A and B passed. **At checkpoint C** (the trickiest rules), waiting for the user's review before step 12 (BankTrade and the player-trade protocol).
+- Win check: `TryWin` runs after every `Apply` (current seat only, total VP incl. hidden) and at the start of each turn in `ApplyEndTurn`, before the turn-cap draw.
 - Largest Army (`UpdateLargestArmy` in `Rules.Awards.cs`) landed with Knights in step 10, for the same validator reason as Longest Road.
 - Discards are never in the legal list (the brief's rule): agents build them, `Rules.RandomDiscard` builds a random valid one, `TestPlay.RandomAction` handles it in tests.
 - The Longest Road award (`Rules.Awards.cs`) landed in step 8, because random games reach 5 roads and the validator checks the holder. Step 11 adds the FAQ cut-case tests, Largest Army and the win check. Until then games only end at `MaxTurns` (counted across all seats).
