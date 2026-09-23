@@ -1,6 +1,6 @@
 # CatanAI
 
-A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a Godot front end. The roadmap is **[docs/M1-brief.md](docs/M1-brief.md)**. Read it before starting M1 work; it is the spec for ids, rules, APIs and tests.
+A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a Godot front end. The plans are **[docs/M1-brief.md](docs/M1-brief.md)** (engine: ids, rules, APIs, tests) and **[docs/M2-brief.md](docs/M2-brief.md)** (playable Godot UI). Read the relevant one before working on a milestone.
 
 ## Git and commit rules
 
@@ -14,7 +14,9 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): all 15 steps done**, checkpoints A, B and C passed. **At checkpoint D** (M1 sign-off), waiting for the user's review. After that comes M2 (drawing the board in Godot).
+- **M1 (rules engine): signed off 2026-09-22** (all 15 steps, checkpoints A–D). M1 can still change later; tests, golden records and CI fuzz guard it.
+- **M2 (playable Godot UI): in progress**, plan in `docs/M2-brief.md` (written by Claude, approved by the user; the original brief only covered M0/M1). Step 1 in progress. Checkpoints A (after 2), B (after 6), C (after 9), D (after 12).
+- M2 decisions: flat drawn style now, sprite / texture art pass after M2 (draw through a `BoardSkin` so it's a drop-in swap); 1600×900 window; human seat and color random each game (color preference later); bot delay 0.5 s, 20 s response window for bot offers.
 - M1 done-when, as of 2026-09-22: 100,000 validated RandomBot games with 0 violations (plus 100,000 pure-random, also 0); every saved record replays to its hash; all tests pass.
 - **Bench baseline** (2026-09-22, Ryzen 7 5800X, 16 threads, `bench --seconds 10`, no validation): **1,136 games/s, 1.04M actions/s**, avg 271.5 turns, 3.3% turn-cap draws. Compare later milestones against this.
 - `RandomBot` (Catan.AI) is a **tester, not the real AI**: it exists to find engine bugs and as the weakest baseline. Smart bots start in M3.
