@@ -7,7 +7,7 @@ using Godot;
 /// <summary>
 /// Debug viewer: plays random legal moves on a real GameState and draws the board, pieces and every seat's full state
 /// (not a player view). Runs StateValidator after each move and shows violations in red.
-/// Keys: Space step, A autoplay, +/- speed, N new game, H hex ids, V vertex ids, E edge ids, P harbors.
+/// Keys: Space step, A autoplay, +/- speed, N new game, H hex ids, V vertex ids, E edge ids, P harbors, Esc menu.
 /// </summary>
 public partial class DebugView : Node2D
 {
@@ -96,6 +96,7 @@ public partial class DebugView : Node2D
             case Key.V when !key.Echo: _showVertices = !_showVertices; break;
             case Key.E when !key.Echo: _showEdges = !_showEdges; break;
             case Key.P when !key.Echo: _showHarbors = !_showHarbors; break;
+            case Key.Escape when !key.Echo: GetTree().ChangeSceneToFile("res://scenes/Menu.tscn"); return;
             default: return;
         }
         QueueRedraw();
@@ -323,7 +324,7 @@ public partial class DebugView : Node2D
 
         y = view.Y - 44;
         Line("Space step   A autoplay   +/- speed   N new game", PanelText, 13);
-        Line($"H hex ids   V vertex ids   E edge ids   P harbors   speed {_speed + 1}/{StepSeconds.Length}" + (_auto ? "   AUTO" : ""), PanelText, 13);
+        Line($"H hex ids   V vertex ids   E edge ids   P harbors   Esc menu   speed {_speed + 1}/{StepSeconds.Length}" + (_auto ? "   AUTO" : ""), PanelText, 13);
     }
 
     private void DrawLogPanel(Font font, Vector2 view, float width)

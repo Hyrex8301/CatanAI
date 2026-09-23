@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\src\Catan.Core\Catan.Core.csproj" />
     <ProjectReference Include="..\src\Catan.AI\Catan.AI.csproj" />
+    <ProjectReference Include="..\src\Catan.UI\Catan.UI.csproj" />
   </ItemGroup>
 
 </Project>
