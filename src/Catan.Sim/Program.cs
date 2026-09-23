@@ -25,6 +25,7 @@ static class Sim
                 "bench" => Bench(options),
                 "match" => Match(options),
                 "ladder" => LadderCommand(options),
+                "calibrate" => Calibrate(options),
                 "train" => Train(options),
                 _ => Usage(),
             };
@@ -46,9 +47,10 @@ static class Sim
               replay --file PATH                                           re-run a saved game and report the first problem
               bench --seconds N [--seed S] [--pure]                        games/s and actions/s without validation
               match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate]
-              ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
                                                                            A vs B with rotated seats; A's win rate and 95% CI
                     BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
+              ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
+              calibrate [--weights W.json] [--games N] [--out F.json]      fit evaluation values to win chances from self-play
               train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
                                                                            self-play training; resumes if DIR has a checkpoint;
                                                                            Ctrl+C stops after the current generation
@@ -200,6 +202,48 @@ static class Sim
         foreach (var (bot, rating) in Ladder.Ratings(bots, results).OrderByDescending(p => p.Value))
             Console.WriteLine($"  {rating,7:F0}  {bot}");
         Console.WriteLine($"({sw.Elapsed.TotalSeconds:F0} s)");
+        return 0;
+    }
+
+    // ---- calibrate ----
+
+    private static int Calibrate(Options o)
+    {
+        var weights = o.Flag("weights") ? BotWeights.Load(o.String("weights", "")) : new BotWeights();
+        int games = o.Int("games", 1000);
+        int threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2));
+        ulong seed = o.ULong("seed", 1);
+        var sw = Stopwatch.StartNew();
+        var train = WinModel.Collect(weights, games, seed, threads);
+        var test = WinModel.Collect(weights, Math.Max(100, games / 4), seed + 50_000_000, threads);
+        var model = WinModel.Fit(train);
+        Console.WriteLine($"{train.Count:N0} training positions, {test.Count:N0} held out ({sw.Elapsed.TotalSeconds:F0} s)");
+        Console.WriteLine($"fitted: k = {model.A:G4} + {model.B:G4} × leader VP");
+        Console.WriteLine($"log-likelihood per position: fitted {model.LogLikelihood(test):F4}, default {WinModel.Default.LogLikelihood(test):F4}, blind guess {Math.Log(0.25):F4}");
+        var values = train.SelectMany(s => s.Values).ToArray();
+        Console.WriteLine($"values: mean {values.Average():F1}, min {values.Min():F1}, max {values.Max():F1}");
+
+        // Reliability: predicted chance in bins against how often those seats actually won.
+        var bins = new (double Predicted, int Won, int Count)[10];
+        var p = new double[GameConstants.PlayerCount];
+        foreach (var s in test)
+        {
+            model.Chances(s.Values, s.LeaderVp, p);
+            for (int seat = 0; seat < p.Length; seat++)
+            {
+                int b = Math.Min(9, (int)(p[seat] * 10));
+                bins[b] = (bins[b].Predicted + p[seat], bins[b].Won + (s.Winner == seat ? 1 : 0), bins[b].Count + 1);
+            }
+        }
+        Console.WriteLine("predicted  actual   positions");
+        foreach (var (predicted, won, count) in bins.Where(b => b.Count > 0))
+            Console.WriteLine($"  {100 * predicted / count,5:F1}%  {100.0 * won / count,5:F1}%  {count,8:N0}");
+
+        if (o.Flag("out"))
+        {
+            File.WriteAllText(o.String("out", ""), model.ToJson());
+            Console.WriteLine($"saved {o.String("out", "")}");
+        }
         return 0;
     }
 
