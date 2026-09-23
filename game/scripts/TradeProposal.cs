@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Catan.Core;
 using Catan.UI;
 using Godot;
@@ -177,7 +178,7 @@ public sealed class TradeProposal
         string? bankWhy = TradeModel.TryBankTrades(v, _give.Cards, _get.Cards, out _bankTrades, out string reason) ? null : reason;
         _people.Set(playersWhy is null, playersWhy is null ? PeopleTip() : $"{PeopleTip()}\n{playersWhy}");
         var ratios = TradeModel.Ratios(v);
-        string rates = $"Your bank rates: brick {ratios[0]}:1, lumber {ratios[1]}:1, wool {ratios[2]}:1, grain {ratios[3]}:1, ore {ratios[4]}:1";
+        string rates = "Your bank rates: " + string.Join(", ", Enumerable.Range(0, 5).Select(r => $"{GameText.Resource(r)} {ratios[r]}:1"));
         _bank.Set(bankWhy is null, bankWhy is null ? $"Trade with the bank\n{rates}" : $"Trade with the bank\n{bankWhy}\n{rates}");
         _bank.Visible = _panel.Visible && _mode == Mode.Offer;
 

@@ -57,11 +57,11 @@ public static partial class Rules
         Span<int> ratios = stackalloc int[R];
         TradeRatios(s, a.Seat, ratios);
         if (a.Give.Total != ratios[give])
-            return Fail($"You trade {(Resource)give} with the bank at {ratios[give]}:1.", out reason);
+            return Fail($"You trade {ResourceNames.Of(give)} with the bank at {ratios[give]}:1.", out reason);
         if (!a.Give.FitsIn(s.HandOf(a.Seat)))
             return Fail("You don't have those cards.", out reason);
         if (s.Bank[get] == 0)
-            return Fail($"The bank has no {(Resource)get} left.", out reason);
+            return Fail($"The bank has no {ResourceNames.Of(get)} left.", out reason);
         return Pass(out reason);
     }
 
@@ -135,7 +135,7 @@ public static partial class Rules
             if (give[r] < 0 || get[r] < 0)
                 return Fail("A trade can't have negative counts.", out reason);
             if (give[r] > 0 && get[r] > 0)
-                return Fail($"{(Resource)r} can't be on both sides of a trade.", out reason);
+                return Fail($"You can't give and get {ResourceNames.Of(r)} in the same trade.", out reason);
         }
         if (give.Total == 0 || get.Total == 0)
             return Fail("Both sides must give at least one card (no gifts).", out reason);

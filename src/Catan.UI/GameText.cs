@@ -8,7 +8,6 @@ namespace Catan.UI;
 /// </summary>
 public sealed class GameText
 {
-    private static readonly string[] ResourceNames = { "brick", "lumber", "wool", "grain", "ore" };
     private readonly IReadOnlyList<SeatColor> _colors;
     private readonly int _viewer;
 
@@ -20,17 +19,17 @@ public sealed class GameText
 
     public string Seat(int seat) => seat == _viewer ? "You" : seat >= 0 && seat < _colors.Count ? _colors[seat].ToString() : "nobody";
 
-    public static string Resource(int r) => r is >= 0 and < 5 ? ResourceNames[r] : "a card";
+    public static string Resource(int r) => ResourceNames.Of(r);
 
-    /// <summary>"Brick", "Lumber", ...: for card faces and tooltips.</summary>
-    public static string ResourceTitle(int r) => r is >= 0 and < 5 ? char.ToUpperInvariant(ResourceNames[r][0]) + ResourceNames[r][1..] : "Card";
+    /// <summary>"Brick", "Wood", ...: for card faces and tooltips.</summary>
+    public static string ResourceTitle(int r) => r is >= 0 and < 5 ? char.ToUpperInvariant(ResourceNames.Of(r)[0]) + ResourceNames.Of(r)[1..] : "Card";
 
     public static string Cards(ResourceSet cards)
     {
         var parts = new List<string>();
         for (int r = 0; r < GameConstants.ResourceCount; r++)
             if (cards[r] != 0)
-                parts.Add($"{cards[r]} {ResourceNames[r]}");
+                parts.Add($"{cards[r]} {ResourceNames.Of(r)}");
         return parts.Count == 0 ? "nothing" : string.Join(", ", parts);
     }
 

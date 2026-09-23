@@ -42,7 +42,7 @@ public partial class DebugView : Node2D
     };
 
     private static readonly string[] SeatNames = { "Red", "Blue", "Orange", "White" };
-    private static readonly string[] HarborLabels = { "2:1 Brick", "2:1 Lumber", "2:1 Wool", "2:1 Grain", "2:1 Ore", "3:1" };
+    private static readonly string[] HarborLabels = { "2:1 Brick", "2:1 Wood", "2:1 Sheep", "2:1 Wheat", "2:1 Ore", "3:1" };
     private static readonly double[] StepSeconds = { 1.0, 0.5, 0.25, 0.1, 0.03, 0.005 };
 
     private bool _showHexIds, _showVertices, _showEdges, _showHarbors = true;
@@ -398,7 +398,7 @@ public partial class DebugView : Node2D
     private static string Cards(ResourceSet c)
     {
         var parts = new List<string>();
-        string[] names = { "brick", "lumber", "wool", "grain", "ore" };
+        string[] names = { "brick", "wood", "sheep", "wheat", "ore" };
         for (int r = 0; r < 5; r++)
             if (c[r] > 0)
                 parts.Add($"{c[r]} {names[r]}");

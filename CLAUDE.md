@@ -89,7 +89,7 @@ dotnet run -c Release --project src/Catan.Sim -- bench --seconds 10
 ## Conventions (from the brief)
 
 - Everything targets **net8.0** (Godot's C# template still targets .NET 8).
-- Resource order everywhere: **Brick 0, Lumber 1, Wool 2, Grain 3, Ore 4**. Hands, bank and costs are plain `int[5]`; per-seat arrays are `[seat * 5 + index]`.
+- Resource order everywhere: **Brick 0, Lumber 1, Wool 2, Grain 3, Ore 4**. **On screen they are called brick, wood, sheep, wheat, ore** (the user's choice, 2026-09-23): all text goes through `Catan.Core.ResourceNames` / `GameText.Resource`; the enum names in code stay (saves and tests use them). Hands, bank and costs are plain `int[5]`; per-seat arrays are `[seat * 5 + index]`.
 - Dev card order: Knight 0, VictoryPoint 1, RoadBuilding 2, YearOfPlenty 3, Monopoly 4.
 - Topology ids (54 vertices, 72 edges) are derived deterministically and **must never change**, because saved games depend on them.
 - `GameState` is plain data (< 1 KB), with rules in the static `Rules` class and all randomness through `IChance`. Rules never call an RNG directly.

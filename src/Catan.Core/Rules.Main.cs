@@ -41,21 +41,21 @@ public static partial class Rules
                 if (s.RoadsLeft[seat] == 0)
                     return Fail("You have no roads left.", out reason);
                 if (!Costs.Road.FitsIn(s.HandOf(seat)))
-                    return Fail("A road costs 1 brick and 1 lumber.", out reason);
+                    return Fail("A road costs 1 brick and 1 wood.", out reason);
                 return CanPlaceRoad(s, seat, a.Target, out reason);
 
             case ActionType.BuildSettlement:
                 if (s.SettlementsLeft[seat] == 0)
                     return Fail("You have no settlements left.", out reason);
                 if (!Costs.Settlement.FitsIn(s.HandOf(seat)))
-                    return Fail("A settlement costs 1 brick, 1 lumber, 1 wool and 1 grain.", out reason);
+                    return Fail("A settlement costs 1 brick, 1 wood, 1 sheep and 1 wheat.", out reason);
                 return CanPlaceSettlement(s, seat, a.Target, out reason);
 
             case ActionType.BuildCity:
                 if (s.CitiesLeft[seat] == 0)
                     return Fail("You have no cities left.", out reason);
                 if (!Costs.City.FitsIn(s.HandOf(seat)))
-                    return Fail("A city costs 2 grain and 3 ore.", out reason);
+                    return Fail("A city costs 2 wheat and 3 ore.", out reason);
                 if (a.Target is < 0 or >= Topology.VertexCount)
                     return Fail($"Vertex {a.Target} doesn't exist.", out reason);
                 if (s.VertexOwner[a.Target] != seat || s.VertexLevel[a.Target] != 1)
@@ -67,7 +67,7 @@ public static partial class Rules
                 if (DevDeckSize(s) == 0)
                     return Fail("The development card deck is empty.", out reason);
                 if (!Costs.DevCard.FitsIn(s.HandOf(seat)))
-                    return Fail("A development card costs 1 wool, 1 grain and 1 ore.", out reason);
+                    return Fail("A development card costs 1 sheep, 1 wheat and 1 ore.", out reason);
                 reason = "";
                 return true;
 

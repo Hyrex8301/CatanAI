@@ -14,11 +14,11 @@ public class LogTextTests
     public void LinesUseIconsForCardsAndDice()
     {
         Assert.Equal("Red rolled [3][5]", Plain(new DiceRolled(1, 3, 5)));
-        Assert.Equal("You got [wool][wool][ore]", Plain(new ResourcesProduced(0, new ResourceSet(0, 0, 2, 0, 1))));
+        Assert.Equal("You got [sheep][sheep][ore]", Plain(new ResourcesProduced(0, new ResourceSet(0, 0, 2, 0, 1))));
         Assert.Equal("Blue built a road [road]", Plain(new Built(2, PieceType.Road, 7)));
-        Assert.Equal("Red gave [brick] and got [grain] from Blue", Plain(new TradeDone(1, 2, ResourceSet.Of(Resource.Brick), ResourceSet.Of(Resource.Grain))));
-        Assert.Equal("Red offered [lumber] for [ore][ore]", Plain(new TradeOffered(1, 0, ResourceSet.Of(Resource.Lumber), ResourceSet.Of(Resource.Ore, 2))));
-        Assert.Equal("You took [grain][grain][grain] from Blue", Plain(new MonopolyTaken(0, 2, (int)Resource.Grain, 3)));
+        Assert.Equal("Red gave [brick] and got [wheat] from Blue", Plain(new TradeDone(1, 2, ResourceSet.Of(Resource.Brick), ResourceSet.Of(Resource.Grain))));
+        Assert.Equal("Red offered [wood] for [ore][ore]", Plain(new TradeOffered(1, 0, ResourceSet.Of(Resource.Lumber), ResourceSet.Of(Resource.Ore, 2))));
+        Assert.Equal("You took [wheat][wheat][wheat] from Blue", Plain(new MonopolyTaken(0, 2, (int)Resource.Grain, 3)));
         Assert.Equal("White took Largest Army", Plain(new AwardChanged(Award.LargestArmy, -1, 3)));
     }
 
@@ -26,7 +26,7 @@ public class LogTextTests
     public void HiddenCardsStayFaceDown()
     {
         Assert.Equal("Red stole [card] from Blue", Plain(new CardStolen(1, 2, -1)));
-        Assert.Equal("Red stole [wool] from You", Plain(new CardStolen(1, 0, (int)Resource.Wool)));
+        Assert.Equal("Red stole [sheep] from You", Plain(new CardStolen(1, 0, (int)Resource.Wool)));
         Assert.Equal("Blue bought [dev card]", Plain(new DevCardBought(2, null)));
         Assert.Equal("You bought [Knight]", Plain(new DevCardBought(0, DevCardType.Knight)));
     }

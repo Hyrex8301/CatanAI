@@ -53,9 +53,9 @@ public class MainPhaseTests
     {
         var s = Base().Hand(0, brick: 1, grain: 2, ore: 2).Build(); // no lumber, too little ore, no wool
         Assert.False(Legal(s, ActionType.BuildRoad, Ring(Side.E), out string road));
-        Assert.Contains("1 brick and 1 lumber", road);
+        Assert.Contains("1 brick and 1 wood", road);
         Assert.False(Legal(s, ActionType.BuildCity, CenterN, out string city));
-        Assert.Contains("2 grain and 3 ore", city);
+        Assert.Contains("2 wheat and 3 ore", city);
         Assert.False(Legal(s, ActionType.BuyDevCard, -1, out _));
 
         var legal = new List<GameAction>();

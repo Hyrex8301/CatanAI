@@ -88,7 +88,7 @@ public class TradeTests
         Assert.False(Rules.IsLegal(s, Bank(0, Resource.Ore, 4, Resource.Ore), out string self));
         Assert.Contains("for itself", self);
         Assert.False(Rules.IsLegal(s, Bank(0, Resource.Ore, 4, Resource.Wool), out string empty));
-        Assert.Contains("no Wool left", empty);
+        Assert.Contains("no sheep left", empty);
         Assert.False(Rules.IsLegal(s, new GameAction(ActionType.BankTrade, 0,
             Give: new ResourceSet(2, 0, 0, 0, 2), Get: ResourceSet.Of(Resource.Grain)), out string mixed));
         Assert.Contains("single resource", mixed);
@@ -350,7 +350,7 @@ public class TradeTests
         Assert.Contains("no gifts", gift);
         Assert.False(Rules.IsLegal(s, Offer(default, TwoWool), out _));
         Assert.False(Rules.IsLegal(s, Offer(OneOre, new ResourceSet(0, 0, 1, 0, 1)), out string both));
-        Assert.Contains("both sides", both);
+        Assert.Contains("give and get ore in the same trade", both);
         Assert.False(Rules.IsLegal(s, Offer(ResourceSet.Of(Resource.Ore, 4), TwoWool), out string cantPay));
         Assert.Contains("don't have the cards", cantPay);
     }

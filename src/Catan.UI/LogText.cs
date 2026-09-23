@@ -59,7 +59,7 @@ public sealed record LogLine(int Seat, IReadOnlyList<LogPart> Parts, bool Divide
 
 /// <summary>
 /// Colonist-style log lines from redacted events: colored names with card, dice and piece icons in place of words
-/// ("Red rolled [3][5]", "You got [wool][wool]"). Works on the viewer's own redacted log, so hidden details stay hidden.
+/// ("Red rolled [3][5]", "You got [sheep][sheep]"). Works on the viewer's own redacted log, so hidden details stay hidden.
 /// </summary>
 public static class LogText
 {

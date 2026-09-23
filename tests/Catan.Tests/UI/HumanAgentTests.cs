@@ -113,10 +113,10 @@ public class GameTextTests
     [Fact]
     public void CardsAndTradesReadNaturally()
     {
-        Assert.Equal("2 wool, 1 ore", GameText.Cards(new ResourceSet(0, 0, 2, 0, 1)));
-        Assert.Equal("Blue traded 1 ore to You for 2 wool",
+        Assert.Equal("2 sheep, 1 ore", GameText.Cards(new ResourceSet(0, 0, 2, 0, 1)));
+        Assert.Equal("Blue traded 1 ore to You for 2 sheep",
             Text.Describe(new TradeDone(0, 1, ResourceSet.Of(Resource.Ore), ResourceSet.Of(Resource.Wool, 2))));
-        Assert.Equal("Bank: 4 grain → 1 brick",
+        Assert.Equal("Bank: 4 wheat → 1 brick",
             Text.Describe(new GameAction(ActionType.BankTrade, 1, Give: ResourceSet.Of(Resource.Grain, 4), Get: ResourceSet.Of(Resource.Brick))));
         Assert.Equal("Longest Road: You now hold it", Text.Describe(new AwardChanged(Award.LongestRoad, -1, 1)));
         Assert.Equal("Largest Army: Blue now holds it", Text.Describe(new AwardChanged(Award.LargestArmy, 1, 0)));

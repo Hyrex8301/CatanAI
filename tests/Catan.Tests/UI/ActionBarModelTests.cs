@@ -90,7 +90,7 @@ public class ActionBarModelTests
         var city = ActionBarModel.State(BarItem.City, PlayerView.From(s, 0), legal);
         Assert.False(city.Enabled);
         Assert.Equal(4, city.Left);
-        Assert.Equal("City: 2 grain, 3 ore (4 left)\nYou need 1 more grain and 2 more ore", city.Tooltip);
+        Assert.Equal("City: 2 wheat, 3 ore (4 left)\nYou need 1 more wheat and 2 more ore", city.Tooltip);
 
         var preRoll = new StateBuilder(TestBoards.Standard).Phase(Phase.PreRoll, current: 0).Hand(0, brick: 1, lumber: 1).Build();
         Rules.GetLegalActions(preRoll, 0, legal);
