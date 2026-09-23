@@ -142,6 +142,24 @@ public class BoardGenerationTests
     }
 
     [Fact]
+    public void DefaultBoardsNeverPutEqualNumbersNextToEachOther()
+    {
+        // The user's rule (2026-09-22): generated boards never have two equal numbers touching, on top of the 6/8 rule.
+        for (ulong seed = 0; seed < 1000; seed++)
+        {
+            var board = BoardGenerator.Balanced(new Rng(seed));
+            for (int h = 0; h < Topology.HexCount; h++)
+                for (int s = 0; s < 6; s++)
+                {
+                    int n = Topology.HexNeighbors[h, s];
+                    if (n >= 0 && board.NumberAt(h) != 0)
+                        Assert.True(board.NumberAt(h) != board.NumberAt(n), $"seed {seed}: hexes {h} and {n} both have {board.NumberAt(h)}");
+                }
+            Assert.True(BoardGenerator.IsBalanced(board, strict: true));
+        }
+    }
+
+    [Fact]
     public void BalancedAttemptCountsAreInTheBriefsBallpark()
     {
         // The brief estimates ~7 tries for Balanced and ~40 for strict.

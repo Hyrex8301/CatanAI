@@ -9,6 +9,8 @@ TestResults/
 # Godot
 .godot/
 game/.mono/
+# Removed in M2 step 1; an open editor tab keeps re-saving it
+game/scenes/Main.tscn
 *.translation
 
 # Sim tool output worth keeping goes in tests/, not here

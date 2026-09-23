@@ -7,6 +7,8 @@ namespace Catan.Core;
 ///    An optional seat that passes (null) is asked again only after the game has moved on.
 /// 2. Find the acting seat, build its view and legal list, await its decision, check IsLegal, apply, log events, record.
 /// Actions are recorded in the order they were applied, which is all a replay needs.
+/// Awaits deliberately continue on the caller's context (no ConfigureAwait(false)): in Godot every action is then applied
+/// on the main thread, the same thread that draws the state.
 /// </summary>
 public sealed class GameRunner
 {
@@ -66,7 +68,7 @@ public sealed class GameRunner
     public async Task RunAsync(CancellationToken ct = default)
     {
         while (!IsOver)
-            await StepAsync(ct).ConfigureAwait(false);
+            await StepAsync(ct);
     }
 
     /// <summary>Optional trade answers (if any are due), then one decision by the acting seat. Returns false once the game is over.</summary>
@@ -74,14 +76,14 @@ public sealed class GameRunner
     {
         if (IsOver)
             return false;
-        await AskOptionalSeatsAsync(ct).ConfigureAwait(false);
+        await AskOptionalSeatsAsync(ct);
         if (IsOver)
             return false;
 
         int seat = Rules.ActingSeat(State);
         Rules.GetLegalActions(State, seat, _legal);
         var view = PlayerView.From(State, seat, Log);
-        var action = await _agents[seat].DecideAsync(view, _legal.ToArray(), ct).ConfigureAwait(false);
+        var action = await _agents[seat].DecideAsync(view, _legal.ToArray(), ct);
         if (action.Seat != seat)
             throw new InvalidOperationException($"{_agents[seat].Name} (seat {seat}) returned an action for seat {action.Seat}.");
         Apply(action, _agents[seat]);
@@ -110,7 +112,7 @@ public sealed class GameRunner
             var view = PlayerView.From(State, seat, Log);
             asks.Add((seat, _agents[seat].RespondAsync(view, legal, ct)));
         }
-        await Task.WhenAll(asks.Select(a => a.Answer)).ConfigureAwait(false);
+        await Task.WhenAll(asks.Select(a => a.Answer));
 
         foreach (var (seat, answer) in asks)
         {

@@ -2,7 +2,8 @@ namespace Catan.Core;
 
 /// <summary>
 /// Builds boards from a seeded <see cref="Rng"/>; the same seed always gives the same board.
-/// Generated boards are always balanced: a 6 or 8 is never next to another 6 or 8.
+/// Generated boards are always balanced: a 6 or 8 is never next to another 6 or 8, and (by default, the user's rule)
+/// no two equal numbers touch.
 /// </summary>
 public static class BoardGenerator
 {
@@ -33,8 +34,11 @@ public static class BoardGenerator
         return new Board(terrain, numbers, harbors);
     }
 
-    /// <summary>Random, retried until no 6 or 8 is next to another 6 or 8. Strict also bans equal numbers on neighbors.</summary>
-    public static Board Balanced(Rng rng, bool strict = false) => Balanced(rng, strict, out _);
+    /// <summary>
+    /// Random, retried until no 6 or 8 is next to another 6 or 8. Strict (the default) also bans equal numbers on neighbors;
+    /// strict: false is the brief's looser mode, kept for tests.
+    /// </summary>
+    public static Board Balanced(Rng rng, bool strict = true) => Balanced(rng, strict, out _);
 
     public static Board Balanced(Rng rng, bool strict, out int attempts)
     {

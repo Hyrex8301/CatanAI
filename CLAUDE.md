@@ -15,7 +15,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
 - **M1 (rules engine): signed off 2026-09-22** (all 15 steps, checkpoints A–D). M1 can still change later; tests, golden records and CI fuzz guard it.
-- **M2 (playable Godot UI): in progress**, plan in `docs/M2-brief.md` (written by Claude, approved by the user; the original brief only covered M0/M1). Steps 1–2 done, checkpoint A passed. Next is step 3 (HumanAgent, game loop, bot pacing, turn indicator, log). Checkpoints B (after 6), C (after 9), D (after 12). The user wants it working first; art changes come later.
+- **M2 (playable Godot UI): in progress**, plan in `docs/M2-brief.md` (written by Claude, approved by the user; the original brief only covered M0/M1). Steps 1–3 done, checkpoint A passed: a full game is playable against RandomBots (crude controls: board clicks plus plain buttons; random discards; no own trade offers yet). The user wants a much friendlier UI, but later. Checkpoints B (after 6), C (after 9), D (after 12). The user wants it working first; art changes come later.
 - M2 decisions: flat drawn style now, sprite / texture art pass after M2 (draw through a `BoardSkin` so it's a drop-in swap); 1600×900 window; human seat and color random each game (color preference later); bot delay 0.5 s, 20 s response window for bot offers.
 - M1 done-when, as of 2026-09-22: 100,000 validated RandomBot games with 0 violations (plus 100,000 pure-random, also 0); every saved record replays to its hash; all tests pass.
 - **Bench baseline** (2026-09-22, Ryzen 7 5800X, 16 threads, `bench --seconds 10`, no validation): **1,136 games/s, 1.04M actions/s**, avg 271.5 turns, 3.3% turn-cap draws. Compare later milestones against this.
@@ -44,7 +44,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 - `LongestRoad.Compute` exists already (validator needs it); step 11 adds the award rules. `StateBuilder` lives in Core; `TestBoards.Standard` (tests) is a hand-written fixed board, desert at hex 9.
 - Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based everywhere, including board JSON (the brief's table rows 1–9 are spots 0–8).
 - `Terrain` and `HarborType` put their resource first in the same order as `Resource` (Hills 0 = Brick ... ; Desert 5, Generic 5), so `(Resource)terrain` works. `Board` only accepts the exact base-game piece set.
-- **Generated boards are always balanced** (no 6 or 8 next to another 6 or 8); the user's rule. `BoardGenerator.Random` is internal (one shuffle attempt used by `Balanced`, visible to tests only). Games, Sim and bots use `BoardGenerator.Balanced` or a JSON layout.
+- **Generated boards are always balanced** (no 6 or 8 next to another 6 or 8), **and no two equal numbers touch** (`Balanced(rng)` defaults to strict, 2026-09-22); both are the user's rules. `BoardGenerator.Random` is internal (one shuffle attempt used by `Balanced`, visible to tests only). Games, Sim and bots use `BoardGenerator.Balanced` or a JSON layout.
 - Update this section when a step or checkpoint is finished.
 
 ## Workflow
