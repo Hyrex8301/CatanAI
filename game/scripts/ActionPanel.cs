@@ -3,39 +3,23 @@ using System.Collections.Generic;
 using Godot;
 
 /// <summary>
-/// Bottom right: buttons for the moves that aren't board clicks, and room for a widget such as the discard picker.
-/// Step 5 replaces the plain buttons with the colonist-style action bar.
+/// A column of plain buttons at the board's right edge for choices that don't have a proper control yet (which player to
+/// rob, dev card plays, bank trades). Hidden when empty. Later steps move these into the trade window and dev card flows.
 /// </summary>
 public sealed class ActionPanel
 {
-    private readonly HBoxContainer _extra;
-    private readonly HFlowContainer _buttons;
-    private Control? _extraContent;
+    private readonly Control _panel;
+    private readonly VBoxContainer _buttons;
 
-    public ActionPanel(VBoxContainer body)
+    public ActionPanel(Control parent, Rect2 rect)
     {
-        _extra = new HBoxContainer();
-        body.AddChild(_extra);
-
+        _panel = Ui.Panel(null, rect, out var body);
+        parent.AddChild(_panel);
         var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        _buttons = new HFlowContainer();
-        _buttons.AddThemeConstantOverride("h_separation", 6);
-        _buttons.AddThemeConstantOverride("v_separation", 6);
-        _buttons.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _buttons = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _buttons.AddThemeConstantOverride("separation", 4);
         scroll.AddChild(_buttons);
         body.AddChild(scroll);
-    }
-
-    /// <summary>Shows a widget above the buttons (e.g. the discard picker), or nothing. The same widget is kept, not rebuilt.</summary>
-    public void SetExtra(Control? content)
-    {
-        if (ReferenceEquals(content, _extraContent))
-            return;
-        if (_extraContent is not null)
-            _extra.RemoveChild(_extraContent);
-        _extraContent = content;
-        if (content is not null)
-            _extra.AddChild(content);
     }
 
     /// <summary>Replaces the buttons. Each entry is a label, a tooltip (or null) and what clicking does.</summary>
@@ -43,12 +27,19 @@ public sealed class ActionPanel
     {
         foreach (var child in _buttons.GetChildren())
             child.QueueFree();
+        int count = 0;
         foreach (var (label, tooltip, onClick) in buttons)
         {
-            var button = new Button { Text = label, TooltipText = tooltip ?? "", CustomMinimumSize = new Vector2(0, 36) };
-            button.AddThemeFontSizeOverride("font_size", 15);
+            var button = new Button
+            {
+                Text = label, TooltipText = tooltip ?? "", CustomMinimumSize = new Vector2(0, 32),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, FocusMode = Control.FocusModeEnum.None,
+            };
+            button.AddThemeFontSizeOverride("font_size", 14);
             button.Pressed += onClick;
             _buttons.AddChild(button);
+            count++;
         }
+        _panel.Visible = count > 0;
     }
 }
