@@ -23,14 +23,51 @@ public sealed class GameRunner
 
     /// <param name="validate">Run <see cref="StateValidator"/> after every action and throw on a violation.</param>
     public GameRunner(GameState state, IReadOnlyList<IPlayerAgent> agents, IChance chance, bool validate = false)
+        : this(state, agents, new RecordingChance(chance), validate,
+               state.ComputeHash() == new GameState(state.Board, state.Settings).ComputeHash())
+    {
+    }
+
+    private GameRunner(GameState state, IReadOnlyList<IPlayerAgent> agents, RecordingChance chance, bool validate, bool startedFresh)
     {
         if (agents.Count != GameConstants.PlayerCount)
             throw new ArgumentException($"A game needs {GameConstants.PlayerCount} agents.", nameof(agents));
         State = state;
         _agents = agents;
-        _chance = new RecordingChance(chance);
+        _chance = chance;
         _validate = validate;
-        _startedFresh = state.ComputeHash() == new GameState(state.Board, state.Settings).ComputeHash();
+        _startedFresh = startedFresh;
+    }
+
+    /// <summary>
+    /// Continues a saved game: replays the record (with its recorded outcomes) and returns a runner positioned right after it,
+    /// with the same actions, log and outcome history, so <see cref="ToRecord"/> later covers the whole game.
+    /// New random outcomes come from <paramref name="continueWith"/>. Throws <see cref="ReplayException"/> if the record
+    /// doesn't replay cleanly to its final hash.
+    /// </summary>
+    public static GameRunner Resume(GameRecord record, IReadOnlyList<IPlayerAgent> agents, IChance continueWith, bool validate = false)
+    {
+        if (record.FormatVersion != GameRecord.CurrentFormatVersion)
+            throw new ReplayException($"Unsupported record format {record.FormatVersion}.");
+        var state = new GameState(Board.FromLayout(record.Board), record.Settings);
+        var runner = new GameRunner(state, agents, new RecordingChance(continueWith, record.Chance), validate, startedFresh: true);
+
+        var replay = new ReplayChance(record.Chance);
+        for (int i = 0; i < record.Actions.Count; i++)
+        {
+            var action = record.Actions[i];
+            if (!Rules.IsLegal(state, action, out string reason))
+                throw new ReplayException($"Action {i} ({action.Type} by seat {action.Seat}) is illegal: {reason}");
+            runner._events.Clear();
+            Rules.Apply(state, action, replay, runner._events);
+            runner._actions.Add(action);
+            runner.Log.AddRange(runner._events);
+        }
+        if (replay.Remaining != 0)
+            throw new ReplayException($"The record has {replay.Remaining} unused random outcomes.");
+        if (record.FinalHash is { } hash && GameRecord.HashText(state.ComputeHash()) != hash)
+            throw new ReplayException($"Final hash {GameRecord.HashText(state.ComputeHash())} differs from the recorded {hash}.");
+        return runner;
     }
 
     /// <summary>

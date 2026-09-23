@@ -10,14 +10,15 @@ using Godot;
 /// <summary>
 /// The playable game screen (1600×900). Runs the game loop: you in a random seat through a <see cref="HumanAgent"/>,
 /// RandomBots in the others, with a pause after each bot move. Everything drawn comes from your seat's PlayerView.
-/// Board moves: click a highlighted spot. Other moves: the buttons under the board. Esc returns to the menu.
+/// Board moves: click a highlighted spot. Trades: the panel on the right. Other moves: the buttons under the board.
+/// Saves: the Save button, plus an autosave at the end of each of your turns. Esc returns to the menu.
 /// </summary>
 public partial class GameScreen : Control
 {
     // Layout (1600×900): players on the left, trades and log on the right, your hand and buttons under the board.
     public static readonly Rect2 PlayersRect = new(12, 12, 290, 876);
-    public static readonly Rect2 TradesRect = new(1238, 12, 350, 420);
-    public static readonly Rect2 LogRect = new(1238, 444, 350, 444);
+    public static readonly Rect2 TradesRect = new(1238, 12, 350, 520);
+    public static readonly Rect2 LogRect = new(1238, 544, 350, 344);
     public static readonly Rect2 HandRect = new(314, 718, 912, 170);
     public static readonly Rect2 BoardRect = new(314, 12, 912, 694);
 
@@ -27,12 +28,15 @@ public partial class GameScreen : Control
     private HumanAgent _human = null!;
     private GameText _text = null!;
     private readonly CancellationTokenSource _quit = new();
-    private readonly Rng _discardRng = new(1);
 
     private BoardView _board = null!;
     private PlayersPanel _players = null!;
     private LogPanel _log = null!;
     private ActionPanel _actions = null!;
+    private TradePanel _trades = null!;
+    private readonly CardPicker _discard = new();
+    private CardPickerView _discardView = null!;
+    private PlayerView? _view;
     private int _loggedEvents;
 
     /// <summary>When a board click matches several legal actions (e.g. two players to rob), they're offered as buttons.</summary>
@@ -47,17 +51,27 @@ public partial class GameScreen : Control
         AddChild(background);
 
         _options = GameSession.Options;
-        _setup = GameSetup.Create(_options.Seed ?? (ulong)System.Random.Shared.NextInt64());
+        var resume = GameSession.Resume;
+        GameSession.Resume = null;
+        _setup = GameSetup.Create(resume?.Seed ?? _options.Seed ?? (ulong)System.Random.Shared.NextInt64());
         _text = new GameText(_setup.Colors, _setup.HumanSeat);
         _human = new HumanAgent("You", TimeSpan.FromSeconds(_options.ResponseWindowSeconds));
         _human.PromptChanged += OnPromptChanged;
-
-        var agents = new IPlayerAgent[GameConstants.PlayerCount];
-        for (int seat = 0; seat < agents.Length; seat++)
-            agents[seat] = seat == _setup.HumanSeat ? _human : new RandomBot(_setup.BotSeed + (ulong)seat);
-        var state = new GameState(BoardGenerator.Balanced(new Rng(_setup.BoardSeed)), _options.ToSettings());
-        _runner = new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
-        _runner.ActionApplied += (_, _) => Refresh();
+        string? loadError = null;
+        try
+        {
+            _runner = CreateRunner(resume);
+        }
+        catch (ReplayException ex)
+        {
+            // A damaged or incompatible save: say so and start a new game instead.
+            loadError = ex.Message;
+            resume = null;
+            _setup = GameSetup.Create(_options.Seed ?? (ulong)System.Random.Shared.NextInt64());
+            _text = new GameText(_setup.Colors, _setup.HumanSeat);
+            _runner = CreateRunner(null);
+        }
+        _runner.ActionApplied += OnActionApplied;
 
         _board = new BoardView { HoverTargetsOnly = true };
         _board.Setup(BoardRect);
@@ -68,17 +82,50 @@ public partial class GameScreen : Control
         _players = new PlayersPanel(players, _setup);
 
         AddChild(Ui.Panel("Trades", TradesRect, out var trades));
-        trades.AddChild(Ui.Label("Trade offers get their own panel in step 9.\nFor now, answer offers with the buttons below the board.", 14, Ui.MutedText));
+        _trades = new TradePanel(trades, _text, _setup.HumanSeat, Submit, () => _human.Skip());
 
         AddChild(Ui.Panel("Log", LogRect, out var log));
-        _log = new LogPanel(log, new Vector2(320, 380));
-        _log.AddMuted($"Game seed {_setup.Seed}. You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order.");
+        var gameButtons = new HBoxContainer();
+        var save = new Button { Text = "Save game" };
+        save.Pressed += SaveGame;
+        var menu = new Button { Text = "Menu" };
+        menu.Pressed += Leave;
+        gameButtons.AddChild(save);
+        gameButtons.AddChild(menu);
+        log.AddChild(gameButtons);
+        _log = new LogPanel(log, new Vector2(320, 230));
+        _log.AddMuted(resume is null
+            ? $"Game seed {_setup.Seed}. You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
+            : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
+        if (loadError is not null)
+            _log.Add($"[color=#b00000]That save couldn't be loaded ({loadError}). Started a new game instead.[/color]");
 
         AddChild(Ui.Panel("Your turn", HandRect, out var hand));
         _actions = new ActionPanel(hand);
+        _discardView = new CardPickerView(_discard);
+        // Only the buttons depend on the discard pick ("Discard 3 of 4"); a full Refresh here would loop (it resets limits).
+        _discard.Changed += () =>
+        {
+            if (_view is not null)
+                _actions.SetButtons(Buttons(_view, _human.Prompt));
+        };
 
         Refresh();
         CallDeferred(MethodName.StartGame);
+    }
+
+    /// <summary>A new game from the setup, or a saved game continued with dice seeded from the save point (no rerolling by reloading).</summary>
+    private GameRunner CreateRunner(GameRecord? resume)
+    {
+        int turnOffset = resume?.Actions.Count ?? 0;
+        var agents = new IPlayerAgent[GameConstants.PlayerCount];
+        for (int seat = 0; seat < agents.Length; seat++)
+            agents[seat] = seat == _setup.HumanSeat ? _human : new RandomBot(_setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919);
+
+        if (resume is not null)
+            return GameRunner.Resume(resume, agents, new RngChance(_setup.ChanceSeed ^ (ulong)resume.Actions.Count * 0x9E3779B97F4A7C15UL));
+        var state = new GameState(BoardGenerator.Balanced(new Rng(_setup.BoardSeed)), _options.ToSettings());
+        return new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
     }
 
     private void StartGame() => RunGame();
@@ -109,11 +156,19 @@ public partial class GameScreen : Control
         Refresh();
     }
 
+    private void OnActionApplied(GameAction action, IReadOnlyList<GameEvent> events)
+    {
+        // Autosave at the end of each of your turns, and when the game ends.
+        if (events.Any(e => e is TurnEnded t && t.Seat == _setup.HumanSeat || e is GameEnded))
+            GameSession.Store.Autosave(_runner.ToRecord(_setup.Seed));
+        Refresh();
+    }
+
     public override void _Process(double delta)
     {
         // Keep the countdown on an optional answer ticking.
         if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
-            _actions.SetPrompt(OptionalPromptText(_human.Prompt, deadline));
+            _actions.SetPrompt(CountdownText(deadline));
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -130,9 +185,16 @@ public partial class GameScreen : Control
         GetTree().ChangeSceneToFile("res://scenes/Menu.tscn");
     }
 
+    private void SaveGame()
+    {
+        string path = GameSession.Store.Save(_runner.ToRecord(_setup.Seed), DateTime.Now);
+        _log.AddMuted($"Saved as {System.IO.Path.GetFileNameWithoutExtension(path)}.");
+    }
+
     private void OnPromptChanged()
     {
         _choices = null;
+        _discard.Clear();
         Refresh();
     }
 
@@ -144,6 +206,7 @@ public partial class GameScreen : Control
             return;
         var state = _runner.State;
         var view = PlayerView.From(state, _setup.HumanSeat, _runner.Log);
+        _view = view;
         _board.Show(view, _setup.Colors);
         _players.Update(view);
 
@@ -154,6 +217,12 @@ public partial class GameScreen : Control
 
         var prompt = _human.Prompt;
         _board.SetTargets(prompt is { IsOptional: false } ? prompt.Legal.Select(TargetOf).Where(t => t.Kind != HitKind.None).Distinct() : Array.Empty<BoardHit>());
+        _trades.Update(view, prompt);
+
+        bool discarding = prompt is { IsOptional: false } && view.Phase == Phase.Discard;
+        if (discarding)
+            _discard.SetLimits(view.Hand, view.DiscardOwed[_setup.HumanSeat]);
+        _actions.SetExtra(discarding ? _discardView : null);
         _actions.SetHand(HandText(view));
         _actions.SetPrompt(PromptText(view, prompt));
         _actions.SetButtons(Buttons(view, prompt));
@@ -166,7 +235,7 @@ public partial class GameScreen : Control
         if (prompt is null)
             return v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)} is playing…" : "";
         if (prompt.IsOptional)
-            return OptionalPromptText(prompt, prompt.Deadline ?? DateTime.UtcNow);
+            return CountdownText(prompt.Deadline ?? DateTime.UtcNow);
         if (_choices is not null)
             return "Choose:";
         return v.Phase switch
@@ -174,18 +243,18 @@ public partial class GameScreen : Control
             Phase.SetupSettlement => "Place a settlement: click a highlighted corner.",
             Phase.SetupRoad => "Place a road next to it: click a highlighted edge.",
             Phase.PreRoll => "Your turn: roll the dice (or play a development card first).",
-            Phase.Main => "Build (click a highlighted spot), trade, play a card, or end your turn.",
-            Phase.Discard => $"A 7 was rolled and you hold more than 7 cards: discard {v.DiscardOwed[_setup.HumanSeat]}.",
+            Phase.Main => "Build (click a highlighted spot), trade (right panel), play a card, or end your turn.",
+            Phase.Discard => $"A 7 was rolled and you hold more than 7 cards: choose {v.DiscardOwed[_setup.HumanSeat]} to discard.",
             Phase.MoveRobber => "Move the robber: click a highlighted hex.",
             Phase.RoadBuilding => "Road Building: place a free road.",
             _ => "",
         };
     }
 
-    private string OptionalPromptText(HumanPrompt prompt, DateTime deadline)
+    private string CountdownText(DateTime deadline)
     {
         int seconds = Math.Max(0, (int)Math.Ceiling((deadline - DateTime.UtcNow).TotalSeconds));
-        return $"{_text.Seat(prompt.View.CurrentPlayer)} is trading. Answer below ({seconds} s), or Skip.";
+        return $"{_text.Seat(_runner.State.CurrentPlayer)} is trading: answer in the Trades panel ({seconds} s).";
     }
 
     private static string HandText(PlayerView v)
@@ -202,10 +271,13 @@ public partial class GameScreen : Control
 
     // ---- Your moves ----
 
+    private static bool IsPlayerTrade(ActionType type) => type is ActionType.OfferTrade or ActionType.EditOffer or ActionType.CounterOffer
+        or ActionType.AcceptOffer or ActionType.DeclineOffer or ActionType.ConfirmTrade or ActionType.CancelOffer;
+
     private IEnumerable<(string, string?, Action)> Buttons(PlayerView v, HumanPrompt? prompt)
     {
-        if (prompt is null || _runner.IsOver)
-            yield break;
+        if (prompt is null || prompt.IsOptional || _runner.IsOver)
+            yield break; // optional answers live in the Trades panel
 
         if (_choices is not null)
         {
@@ -215,33 +287,17 @@ public partial class GameScreen : Control
             yield break;
         }
 
-        if (!prompt.IsOptional && v.Phase == Phase.Discard)
+        if (v.Phase == Phase.Discard)
         {
-            yield return ($"Discard {v.DiscardOwed[_setup.HumanSeat]} at random", "A proper discard picker comes in step 6.",
-                () => Submit(Rules.RandomDiscard(v, _discardRng)));
+            int owed = v.DiscardOwed[_setup.HumanSeat];
+            yield return ($"Discard {_discard.Total} of {owed}", "Pick the cards with − / + first.",
+                () => Submit(new GameAction(ActionType.Discard, _setup.HumanSeat, Give: _discard.Cards)));
             yield break;
         }
 
         foreach (var action in prompt.Legal)
-            if (TargetOf(action).Kind == HitKind.None)
-                yield return (ButtonText(v, action), null, () => Submit(action));
-
-        if (prompt.IsOptional)
-            yield return ("Skip", "Don't answer now.", () => _human.Skip());
-    }
-
-    /// <summary>Trade answers name the offer they answer.</summary>
-    private string ButtonText(PlayerView v, GameAction a)
-    {
-        if (a.Type is ActionType.AcceptOffer or ActionType.DeclineOffer && a.Seat == _setup.HumanSeat && a.Target >= 0 && a.Target2 < 0)
-        {
-            var offer = v.Offers[a.Target];
-            string what = offer.IsCounter
-                ? $"{_text.Seat(offer.From)}'s counter ({GameText.Cards(offer.Give)} for your {GameText.Cards(offer.Get)})"
-                : $"{_text.Seat(offer.From)}: their {GameText.Cards(offer.Give)} for your {GameText.Cards(offer.Get)}";
-            return $"{(a.Type == ActionType.AcceptOffer ? "Accept" : "Decline")} {what}";
-        }
-        return _text.Describe(a);
+            if (TargetOf(action).Kind == HitKind.None && !IsPlayerTrade(action.Type))
+                yield return (_text.Describe(action), null, () => Submit(action));
     }
 
     private void OnBoardClicked(BoardHit hit)
@@ -258,16 +314,16 @@ public partial class GameScreen : Control
         }
     }
 
-    /// <summary>Checks the move with the engine first; the runner would reject an illegal one and stop the game.</summary>
-    private void Submit(GameAction action)
+    /// <summary>Checks the move with the engine first (the runner would reject an illegal one and stop the game).</summary>
+    private bool Submit(GameAction action)
     {
         if (!Rules.IsLegal(_runner.State, action, out string reason))
         {
             _actions.SetPrompt($"Can't do that: {reason}");
-            return;
+            return false;
         }
         _choices = null;
-        _human.Submit(action);
+        return _human.Submit(action);
     }
 
     private static BoardHit TargetOf(GameAction a) => a.Type switch

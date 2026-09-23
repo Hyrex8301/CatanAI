@@ -1,9 +1,14 @@
+using System;
+using Catan.Core;
 using Catan.UI;
 using Godot;
 
-/// <summary>Start screen: new game, the M1 debug viewer, quit. Settings and Load arrive in steps 10 and 11.</summary>
+/// <summary>Start screen: continue the autosave, load a save, new game, the M1 debug viewer, quit.</summary>
 public partial class Menu : Control
 {
+    private VBoxContainer _column = null!;
+    private VBoxContainer _saves = null!;
+
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
@@ -11,29 +16,61 @@ public partial class Menu : Control
         background.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(background);
 
-        var column = new VBoxContainer { Position = new Vector2(660, 250), Size = new Vector2(280, 400) };
-        column.AddThemeConstantOverride("separation", 16);
-        AddChild(column);
+        _column = new VBoxContainer { Position = new Vector2(560, 150), Size = new Vector2(480, 650) };
+        _column.AddThemeConstantOverride("separation", 14);
+        AddChild(_column);
 
-        column.AddChild(Ui.Label("Catan AI", 48, Colors.White));
-        column.AddChild(Ui.Label("M2 in progress", 16, new Color(1, 1, 1, 0.75f)));
+        _column.AddChild(Ui.Label("Catan AI", 48, Colors.White));
+        _column.AddChild(Ui.Label("M2 in progress", 16, new Color(1, 1, 1, 0.75f)));
 
-        var newGame = Ui.Button("New game");
-        newGame.Pressed += () =>
+        var store = GameSession.Store;
+        if (store.HasAutosave)
+            AddButton("Continue", () => Play(store.Load(store.AutosavePath)));
+        AddButton("New game", () => Play(null));
+        AddButton("Load game", ToggleSaves);
+        _saves = new VBoxContainer { Visible = false };
+        _column.AddChild(_saves);
+        AddButton("Debug viewer", () => GetTree().ChangeSceneToFile("res://scenes/Debug.tscn"));
+        AddButton("Quit", () => GetTree().Quit());
+
+        ((Button)_column.GetChild(2)).GrabFocus();
+    }
+
+    private void AddButton(string text, Action onClick)
+    {
+        var button = Ui.Button(text);
+        button.Pressed += onClick;
+        _column.AddChild(button);
+    }
+
+    private void Play(GameRecord? resume)
+    {
+        GameSession.Options = new GameOptions();
+        GameSession.Resume = resume;
+        GetTree().ChangeSceneToFile("res://scenes/Game.tscn");
+    }
+
+    private void ToggleSaves()
+    {
+        _saves.Visible = !_saves.Visible;
+        foreach (var child in _saves.GetChildren())
+            child.QueueFree();
+        if (!_saves.Visible)
+            return;
+
+        var saves = GameSession.Store.List();
+        if (saves.Count == 0)
+            _saves.AddChild(Ui.Label("No saved games yet.", 15, Colors.White));
+        foreach (var save in saves)
         {
-            GameSession.Options = new GameOptions();
-            GetTree().ChangeSceneToFile("res://scenes/Game.tscn");
-        };
-        column.AddChild(newGame);
-
-        var debug = Ui.Button("Debug viewer");
-        debug.Pressed += () => GetTree().ChangeSceneToFile("res://scenes/Debug.tscn");
-        column.AddChild(debug);
-
-        var quit = Ui.Button("Quit");
-        quit.Pressed += () => GetTree().Quit();
-        column.AddChild(quit);
-
-        newGame.GrabFocus();
+            var button = new Button
+            {
+                Text = $"{save.Name}   ({save.Record.Actions.Count} moves, {save.SavedAt.ToLocalTime():MMM d HH:mm})",
+                Alignment = HorizontalAlignment.Left,
+            };
+            button.AddThemeFontSizeOverride("font_size", 15);
+            button.Pressed += () => Play(save.Record);
+            _saves.AddChild(button);
+        }
     }
 }

@@ -164,6 +164,64 @@ public class RecordTests
     }
 
     [Fact]
+    public async Task ASavedGameResumesExactlyAndKeepsRecording()
+    {
+        // Play part of a game, save it, resume it, and finish it.
+        var original = RandomTestAgent.Game(21);
+        while (original.Actions.Count < 300)
+            await original.StepAsync();
+        var saved = GameRecord.FromJson(original.ToRecord(21).ToJson());
+
+        var agents = Enumerable.Range(0, 4).Select(i => (IPlayerAgent)new RandomTestAgent(99 + (ulong)i)).ToArray();
+        var resumed = GameRunner.Resume(saved, agents, new RngChance(5), validate: true);
+        Assert.Equal(original.State.ComputeHash(), resumed.State.ComputeHash());
+        Assert.Equal(original.Actions, resumed.Actions);
+        Assert.Equal(original.Log.All, resumed.Log.All);
+
+        await resumed.RunAsync();
+        Assert.True(resumed.IsOver);
+
+        // The resumed game's record covers the whole game and replays to its final hash.
+        var full = resumed.ToRecord(21);
+        Assert.Equal(saved.Actions, full.Actions.Take(saved.Actions.Count));
+        Assert.Equal(saved.Chance, full.Chance.Take(saved.Chance.Count));
+        var result = full.Replay(validate: true);
+        Assert.True(result.Ok, result.Error);
+        Assert.True(result.HashMatches);
+    }
+
+    [Fact]
+    public async Task ResumingWithTheSameDiceSeedGivesTheSameDice()
+    {
+        var game = RandomTestAgent.Game(22);
+        while (game.Actions.Count < 200)
+            await game.StepAsync();
+        var saved = game.ToRecord();
+
+        async Task<ulong> PlayOn()
+        {
+            var agents = Enumerable.Range(0, 4).Select(i => (IPlayerAgent)new RandomTestAgent(7 + (ulong)i)).ToArray();
+            var runner = GameRunner.Resume(saved, agents, new RngChance(1234));
+            for (int i = 0; i < 100 && !runner.IsOver; i++)
+                await runner.StepAsync();
+            return runner.State.ComputeHash();
+        }
+        Assert.Equal(await PlayOn(), await PlayOn()); // no rerolling by reloading
+    }
+
+    [Fact]
+    public async Task ResumeRejectsATamperedSave()
+    {
+        var game = RandomTestAgent.Game(23);
+        while (game.Actions.Count < 50)
+            await game.StepAsync();
+        var saved = game.ToRecord();
+        var bad = new GameRecord { Board = saved.Board, Settings = saved.Settings, Actions = saved.Actions, Chance = saved.Chance, FinalHash = "0000000000000000" };
+        var agents = Enumerable.Range(0, 4).Select(i => (IPlayerAgent)new RandomTestAgent((ulong)i)).ToArray();
+        Assert.Throws<ReplayException>(() => GameRunner.Resume(bad, agents, new RngChance(1)));
+    }
+
+    [Fact]
     public void OnlyNewGamesCanBeRecorded()
     {
         var mid = new StateBuilder(TestBoards.Standard).Phase(Phase.Main).Build();

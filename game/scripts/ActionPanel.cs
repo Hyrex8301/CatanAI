@@ -10,7 +10,9 @@ public sealed class ActionPanel
 {
     private readonly Label _prompt;
     private readonly Label _hand;
+    private readonly HBoxContainer _extra;
     private readonly HFlowContainer _buttons;
+    private Control? _extraContent;
 
     public ActionPanel(VBoxContainer body)
     {
@@ -18,8 +20,10 @@ public sealed class ActionPanel
         body.AddChild(_prompt);
         _hand = Ui.Label("", 14, Ui.MutedText);
         body.AddChild(_hand);
+        _extra = new HBoxContainer();
+        body.AddChild(_extra);
 
-        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(880, 74), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(880, 60), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         _buttons = new HFlowContainer();
         _buttons.AddThemeConstantOverride("h_separation", 6);
         _buttons.AddThemeConstantOverride("v_separation", 6);
@@ -29,6 +33,18 @@ public sealed class ActionPanel
     }
 
     public void SetPrompt(string text) => _prompt.Text = text;
+
+    /// <summary>Shows a widget above the buttons (e.g. the discard picker), or nothing. The same widget is kept, not rebuilt.</summary>
+    public void SetExtra(Control? content)
+    {
+        if (ReferenceEquals(content, _extraContent))
+            return;
+        if (_extraContent is not null)
+            _extra.RemoveChild(_extraContent);
+        _extraContent = content;
+        if (content is not null)
+            _extra.AddChild(content);
+    }
 
     public void SetHand(string text) => _hand.Text = text;
 

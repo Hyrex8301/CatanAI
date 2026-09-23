@@ -25,6 +25,9 @@ public sealed class RecordingChance : IChance
 
     public RecordingChance(IChance inner) => _inner = inner;
 
+    /// <summary>Continues an earlier log (a resumed game keeps its full history of outcomes).</summary>
+    public RecordingChance(IChance inner, IEnumerable<ChanceOutcome> earlier) : this(inner) => _log.AddRange(earlier);
+
     public IReadOnlyList<ChanceOutcome> Log => _log;
 
     public (int D1, int D2) RollDice()
