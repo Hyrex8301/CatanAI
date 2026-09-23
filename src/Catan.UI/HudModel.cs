@@ -21,12 +21,15 @@ public sealed record SeatSummary(
 public static class HudModel
 {
     /// <summary>Resources you hold in resource order, then dev cards in dev card order. Empty stacks are left out.</summary>
-    public static IReadOnlyList<CardStack> Hand(PlayerView v)
+    public static IReadOnlyList<CardStack> Hand(PlayerView v) => Hand(v, default);
+
+    /// <summary>Your hand with some cards set aside (picked for a discard), which leave the hand bar while picked.</summary>
+    public static IReadOnlyList<CardStack> Hand(PlayerView v, ResourceSet setAside)
     {
         var stacks = new List<CardStack>();
         for (int r = 0; r < GameConstants.ResourceCount; r++)
-            if (v.Hand[r] > 0)
-                stacks.Add(new CardStack(false, r, v.Hand[r]));
+            if (v.Hand[r] - setAside[r] > 0)
+                stacks.Add(new CardStack(false, r, v.Hand[r] - setAside[r]));
         for (int t = 0; t < GameConstants.DevCardTypeCount; t++)
             if (v.DevHand[t] > 0)
                 stacks.Add(new CardStack(true, t, v.DevHand[t], v.DevBoughtThisTurn[t]));

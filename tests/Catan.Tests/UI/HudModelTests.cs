@@ -25,6 +25,14 @@ public class HudModelTests
     }
 
     [Fact]
+    public void CardsSetAsideForADiscardLeaveTheHand()
+    {
+        var s = new StateBuilder(TestBoards.Standard).Phase(Phase.Main, current: 0, hasRolled: true).Hand(0, brick: 2, ore: 3).Build();
+        var hand = HudModel.Hand(PlayerView.From(s, 0), new ResourceSet(2, 0, 0, 0, 1));
+        Assert.Equal(new[] { new CardStack(false, (int)Resource.Ore, 2) }, hand);
+    }
+
+    [Fact]
     public void EmptyHandHasNoStacks() =>
         Assert.Empty(HudModel.Hand(PlayerView.From(new GameState(TestBoards.Standard), 0)));
 

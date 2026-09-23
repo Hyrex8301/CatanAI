@@ -31,8 +31,9 @@ public partial class GameScreen : Control
     private static readonly Rect2 BankButtonRect = new(750, 636, 80, 80);
     private static readonly Rect2 PeopleButtonRect = new(750, 720, 80, 80);
     private static readonly Vector2 PopupsTopRight = new(1250, 8);
-    private static readonly Rect2 ChoicesRect = new(8, 110, 210, 420);
-    private static readonly Rect2 DiscardRect = new(4, 644, 360, 150);
+    private static readonly Rect2 DevRect = new(4, 560, 540, 236);
+    private static readonly Rect2 DiscardRect = new(4, 648, 740, 148);
+    private static readonly Vector2 VictimCenter = new(645, 390);
 
     private GameOptions _options = null!;
     private GameSetup _setup = null!;
@@ -48,10 +49,11 @@ public partial class GameScreen : Control
     private LogPanel _log = null!;
     private ActionBar _bar = null!;
     private DiceView _dice = null!;
-    private ActionPanel _actions = null!;
+    private DevCardPopup _devPopup = null!;
+    private VictimPopup _victims = null!;
     private TradeProposal _proposal = null!;
     private TradePopups _popups = null!;
-    private Control _discardPanel = null!;
+    private DiscardPanel _discardUi = null!;
     private readonly CardPicker _discard = new();
     private readonly Queue<GameAction> _queued = new();
 
@@ -143,18 +145,15 @@ public partial class GameScreen : Control
             edit: (slot, o) => { _proposal.StartEdit(slot, o); _tradeOpen = true; Refresh(); },
             counter: (slot, o) => { _proposal.StartCounter(slot, o); Refresh(); });
 
-        // Choices without a proper control yet (dev card plays, who to rob) and the discard picker.
-        _actions = new ActionPanel(this, ChoicesRect);
-        _discardPanel = Ui.Panel("Discard: click cards in your hand, or use − / +", DiscardRect, out var discard);
-        _discardPanel.Visible = false;
-        AddChild(_discardPanel);
-        discard.AddChild(new CardPickerView(_discard));
-        // Only the buttons depend on the discard pick ("Discard 3 of 4"); a full Refresh here would loop (it resets limits).
-        _discard.Changed += () =>
-        {
-            if (_view is not null)
-                _actions.SetButtons(Buttons(_view, _human.Prompt));
-        };
+        // Sevens and dev cards: discard from your hand, pick who to rob, play a card from your hand.
+        _discardUi = new DiscardPanel(this, DiscardRect, _discard,
+            () => Submit(new GameAction(ActionType.Discard, _setup.HumanSeat, Give: _discard.Cards)));
+        // Picking a card moves it out of the hand bar (a full Refresh here would loop: it resets the picker's limits).
+        _discard.Changed += () => { if (_view is not null) _hand.Update(HudModel.Hand(_view, _discard.Cards)); };
+        _victims = new VictimPopup(this, VictimCenter, _setup.Colors, _text, () => { _choices = null; Refresh(); });
+        _devPopup = new DevCardPopup(this, DevRect, _setup.HumanSeat, Submit);
+        _devPopup.Closed += () => { _devPopup.Close(); Refresh(); };
+        _hand.DevClicked += type => { CloseProposal(); _devPopup.Open(type); Refresh(); };
 
         Refresh();
         CallDeferred(MethodName.StartGame);
@@ -250,7 +249,7 @@ public partial class GameScreen : Control
             _popups.Tick(deadline, _human.ResponseWindow);
             _bar.SetTimer(Clock(Math.Max(0, (deadline - DateTime.UtcNow).TotalSeconds)));
         }
-        else
+        else if (!_runner.IsOver)
             _bar.SetTimer(Clock((DateTime.UtcNow - _turnStarted).TotalSeconds));
     }
 
@@ -276,6 +275,8 @@ public partial class GameScreen : Control
             return;
         if (_choices is not null)
             _choices = null;
+        else if (_devPopup.Visible)
+            _devPopup.Close();
         else if (_mode != BuildMode.None)
             _mode = BuildMode.None;
         else
@@ -330,7 +331,10 @@ public partial class GameScreen : Control
         _bank.Show(view);
         for (int seat = 0; seat < GameConstants.PlayerCount; seat++)
             _playerCards[seat].Show(HudModel.Seat(view, seat, _setup.Colors));
-        _hand.Update(HudModel.Hand(view));
+        bool discarding = _human.Prompt is { IsOptional: false } && view.Phase == Phase.Discard;
+        if (discarding)
+            _discard.SetLimits(view.Hand, view.DiscardOwed[_setup.HumanSeat]);
+        _hand.Update(HudModel.Hand(view, discarding ? _discard.Cards : default));
 
         var seen = _runner.Log.For(_setup.HumanSeat);
         bool newRoll = false;
@@ -356,13 +360,11 @@ public partial class GameScreen : Control
         _board.SetTargets(legal is null ? Array.Empty<BoardHit>()
             : ActionBarModel.BoardActions(_mode, view, legal).Select(TargetOf).Distinct());
 
-        bool discarding = legal is not null && view.Phase == Phase.Discard;
-        if (discarding)
-            _discard.SetLimits(view.Hand, view.DiscardOwed[_setup.HumanSeat]);
-        _discardPanel.Visible = discarding;
+        _discardUi.Show(discarding, view.DiscardOwed[_setup.HumanSeat]);
+        _victims.Show(legal is null ? null : _choices, view, Submit);
+        _devPopup.Update(view, legal);
         var (status, help) = StatusText(view, prompt);
         _bar.SetStatus(status, help);
-        _actions.SetButtons(Buttons(view, prompt));
     }
 
     /// <summary>The dice sit beside the row of the player who rolled (or yours, glowing, when it's your roll).</summary>
@@ -394,7 +396,7 @@ public partial class GameScreen : Control
         if (prompt.IsOptional)
             return ("Answer Trade", $"{_text.Seat(v.CurrentPlayer)} wants to trade: accept, decline or counter in the offer card (top right).");
         if (_choices is not null)
-            return ("Choose", "Pick one of the options on the left.");
+            return ("Choose Who to Rob", "Click a player in the popup, or Esc to pick a different hex.");
         return v.Phase switch
         {
             Phase.SetupSettlement => ("Place Settlement", "Click a highlighted corner."),
@@ -415,37 +417,6 @@ public partial class GameScreen : Control
     }
 
     // ---- Your moves ----
-
-    private static bool IsPlayerTrade(ActionType type) => type is ActionType.OfferTrade or ActionType.EditOffer or ActionType.CounterOffer
-        or ActionType.AcceptOffer or ActionType.DeclineOffer or ActionType.ConfirmTrade or ActionType.CancelOffer;
-
-    private IEnumerable<(string, string?, Action)> Buttons(PlayerView v, HumanPrompt? prompt)
-    {
-        if (prompt is null || prompt.IsOptional || _runner.IsOver)
-            yield break; // optional answers live in the offer cards
-
-        if (_choices is not null)
-        {
-            foreach (var choice in _choices)
-                yield return (_text.Describe(choice), null, () => Submit(choice));
-            yield return ("Cancel", null, () => { _choices = null; Refresh(); });
-            yield break;
-        }
-
-        if (v.Phase == Phase.Discard)
-        {
-            int owed = v.DiscardOwed[_setup.HumanSeat];
-            yield return ($"Discard {_discard.Total} of {owed}", "Click cards in your hand, or use − / +.",
-                () => Submit(new GameAction(ActionType.Discard, _setup.HumanSeat, Give: _discard.Cards)));
-            yield break;
-        }
-
-        // Moves without a proper control yet (dev card plays); the buttons and trade panel have the rest.
-        foreach (var action in prompt.Legal)
-            if (TargetOf(action).Kind == HitKind.None && !IsPlayerTrade(action.Type)
-                && action.Type is not (ActionType.RollDice or ActionType.EndTurn or ActionType.BuyDevCard or ActionType.BankTrade))
-                yield return (_text.Describe(action), null, () => Submit(action));
-    }
 
     private void OnBarClicked(BarItem item)
     {

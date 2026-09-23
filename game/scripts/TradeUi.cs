@@ -447,6 +447,9 @@ public sealed class TradePopups
         return tile;
     }
 
+    /// <summary>The check-mark picture (confirm buttons elsewhere use it too).</summary>
+    public static void DrawCheck(CanvasItem c, Vector2 at, float s, Color ink) => DrawRoundIcon(c, at, s, ink, RoundIcon.Check);
+
     private static void DrawRoundIcon(CanvasItem c, Vector2 at, float s, Color ink, RoundIcon icon)
     {
         float r = s * 0.42f;
