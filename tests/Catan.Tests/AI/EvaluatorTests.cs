@@ -99,4 +99,21 @@ public class EvaluatorTests
         Assert.Equal(42, partial["vp"]);
         Assert.Equal(BotWeights.Defaults["dev_cards"], partial["dev_cards"]);
     }
+
+    /// <summary>
+    /// The game loads game/bots/best.json. Missing names would silently fall back to defaults and unknown ones would be
+    /// ignored, so after a feature is added or renamed this fails until the bundled weights are retrained or updated.
+    /// </summary>
+    [Fact]
+    public void BundledGameWeightsLoadAndNameEveryWeight()
+    {
+        string path = Path.Combine(RepoRoot(), "game", "bots", "best.json");
+        Assert.True(File.Exists(path), "game/bots/best.json is missing");
+        var names = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(path))!.Keys;
+        Assert.Equal(BotWeights.Names.OrderBy(n => n), names.OrderBy(n => n));
+        Assert.All(BotWeights.Load(path).ToVector(), v => Assert.True(double.IsFinite(v)));
+    }
+
+    private static string RepoRoot([System.Runtime.CompilerServices.CallerFilePath] string path = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(path)!, "..", "..", ".."));
 }
