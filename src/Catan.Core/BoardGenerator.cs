@@ -1,12 +1,18 @@
 namespace Catan.Core;
 
-/// <summary>Builds boards from a seeded <see cref="Rng"/>; the same seed always gives the same board.</summary>
+/// <summary>
+/// Builds boards from a seeded <see cref="Rng"/>; the same seed always gives the same board.
+/// Generated boards are always balanced: a 6 or 8 is never next to another 6 or 8.
+/// </summary>
 public static class BoardGenerator
 {
     private const int MaxAttempts = 100_000;
 
-    /// <summary>Three shuffles: terrain onto hexes, tokens onto non-desert hexes (in hex id order), harbor types onto spots.</summary>
-    public static Board Random(Rng rng)
+    /// <summary>
+    /// One unfiltered attempt: terrain onto hexes, tokens onto non-desert hexes (in hex id order), harbor types onto spots.
+    /// Internal so games never use an unbalanced board; Balanced calls it and tests can reach it.
+    /// </summary>
+    internal static Board Random(Rng rng)
     {
         Span<Terrain> terrain = stackalloc Terrain[Topology.HexCount];
         StandardPieces.Terrain.CopyTo(terrain);

@@ -16,6 +16,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 - **M1 (rules engine): steps 1–4 done**, checkpoint A passed. Next is step 5: `GameState`, `CopyFrom`, `ComputeHash`, `StateValidator`, `StateBuilder`.
 - Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based everywhere, including board JSON (the brief's table rows 1–9 are spots 0–8).
 - `Terrain` and `HarborType` put their resource first in the same order as `Resource` (Hills 0 = Brick ... ; Desert 5, Generic 5), so `(Resource)terrain` works. `Board` only accepts the exact base-game piece set.
+- **Generated boards are always balanced** (no 6 or 8 next to another 6 or 8); the user's rule. `BoardGenerator.Random` is internal (one shuffle attempt used by `Balanced`, visible to tests only). Games, Sim and bots use `BoardGenerator.Balanced` or a JSON layout.
 - Update this section when a step or checkpoint is finished.
 
 ## Workflow
