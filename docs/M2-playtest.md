@@ -85,7 +85,7 @@ Start a game from the menu with the default settings (10 points, Normal bot spee
 
 - [ ] Save from the settings menu (gear), including during a trade. Load it from the menu: the game continues from the same spot.
 - [ ] The autosave after each of your turns resumes correctly with Continue.
-- [ ] A saved game replays in the Sim to the same hash: `dotnet run -c Release --project src/Catan.Sim -- replay --file <save>` (saves are in `%APPDATA%Godotpp_userdataCatanAIsaves`).
+- [ ] A saved game replays in the Sim to the same hash: `dotnet run -c Release --project src/Catan.Sim -- replay --file <save>` (saves are in `%APPDATA%\Godot\app_userdata\CatanAI\saves`).
 - [ ] The game-over screen appears when someone wins: standings with points by source (settlements, cities, Victory Point
       cards, awards), stats, and the dice-roll chart. "View board" closes it; the gear menu's "Game results" reopens it.
 - [ ] "New game" starts a fresh game; "Main menu" returns to the menu.
