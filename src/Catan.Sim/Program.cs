@@ -24,6 +24,7 @@ static class Sim
                 "replay" => Replay(options),
                 "bench" => Bench(options),
                 "match" => Match(options),
+                "ladder" => LadderCommand(options),
                 "train" => Train(options),
                 _ => Usage(),
             };
@@ -45,6 +46,7 @@ static class Sim
               replay --file PATH                                           re-run a saved game and report the first problem
               bench --seconds N [--seed S] [--pure]                        games/s and actions/s without validation
               match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate]
+              ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
                                                                            A vs B with rotated seats; A's win rate and 95% CI
                     BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
               train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
@@ -173,6 +175,31 @@ static class Sim
         Console.WriteLine($"{a} vs {b} ({(twoVsTwo ? "2v2" : "1v3")}): {games} games, {games / sw.Elapsed.TotalSeconds:F1} games/s, " +
                           $"avg turns {results.Average(r => r.Turns):F0}, draws {games - decided}");
         Console.WriteLine($"{a} wins {100 * p:F1}% ± {100 * ci:F1}% (equal strength would be {100 * fair:F0}%)");
+        return 0;
+    }
+
+    // ---- ladder ----
+
+    private static int LadderCommand(Options o)
+    {
+        var bots = o.String("bots", "random,smart-fast,smart").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        int games = o.Int("games", 400);
+        ulong seed = o.ULong("seed", 1);
+        int threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2));
+        var sw = Stopwatch.StartNew();
+        var results = new List<PairResult>();
+        for (int i = 0; i < bots.Length; i++)
+            for (int j = i + 1; j < bots.Length; j++)
+            {
+                var r = Ladder.Play(bots[i], bots[j], games, seed, threads);
+                results.Add(r);
+                Console.WriteLine($"{bots[i]} vs {bots[j]}: {100 * r.AShare:F1}% ± {100 * r.Interval:F1}% ({games} games, 2v2)");
+            }
+        Console.WriteLine();
+        Console.WriteLine("Ratings (Elo scale, first bot = 1000):");
+        foreach (var (bot, rating) in Ladder.Ratings(bots, results).OrderByDescending(p => p.Value))
+            Console.WriteLine($"  {rating,7:F0}  {bot}");
+        Console.WriteLine($"({sw.Elapsed.TotalSeconds:F0} s)");
         return 0;
     }
 

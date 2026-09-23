@@ -20,6 +20,8 @@ public class TrainerTests : IDisposable
         Pairs = 2,
         GamesPerVariation = 8,
         ChallengeGames = 24,
+        ConfirmGames = 24,
+        RegressionGames = 24,
         ReportEvery = 2,
         Threads = 4,
         Bot = SmartBotSettings.Training with { Depth = 1 },
@@ -73,5 +75,30 @@ public class TrainerTests : IDisposable
         var o = Small("improve", 12) with { Pairs = 4, GamesPerVariation = 16, Sigma = 0.3, LearningRate = 1.0 };
         var state = new Trainer(o, _ => { }).Run(BotWeights.FromVector(bad));
         Assert.True(state.Mean[BotWeights.IndexOf("vp")] > -10, $"vp weight went {state.Mean[BotWeights.IndexOf("vp")]:F2}");
+    }
+
+    [Fact]
+    public void TheChallengeRejectsACandidateNoBetterThanTheChampion()
+    {
+        var o = Small("gate-same", 1) with { ChallengeGames = 96, ConfirmGames = 192, RegressionGames = 48 };
+        var trainer = new Trainer(o, _ => { });
+        var defaults = new BotWeights().ToVector();
+        for (int generation = 0; generation < 3; generation++)
+        {
+            var state = new TrainerState { Generation = generation, Start = defaults, Champion = defaults, Mean = defaults };
+            Assert.False(trainer.Challenge(state, (double[])defaults.Clone(), out string verdict), verdict);
+            Assert.True(state.GamesPlayed >= 96);
+        }
+    }
+
+    [Fact]
+    public void TheChallengeCrownsAClearlyBetterCandidate()
+    {
+        var bad = new BotWeights().ToVector();
+        bad[BotWeights.IndexOf("vp")] = -10;
+        var o = Small("gate-better", 1) with { ChallengeGames = 48, ConfirmGames = 48, RegressionGames = 24 };
+        var state = new TrainerState { Start = bad, Champion = bad, Mean = bad };
+        Assert.True(new Trainer(o, _ => { }).Challenge(state, new BotWeights().ToVector(), out string verdict), verdict);
+        Assert.Equal(48 + 48 + 24, state.GamesPlayed); // all three stages ran
     }
 }

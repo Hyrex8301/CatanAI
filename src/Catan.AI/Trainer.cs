@@ -24,8 +24,14 @@ public sealed record TrainerOptions
     /// <summary>Games each variation plays per generation.</summary>
     public int GamesPerVariation { get; init; } = 48;
 
-    /// <summary>Games in a champion challenge.</summary>
+    /// <summary>Games in the first stage of a champion challenge (the screen).</summary>
     public int ChallengeGames { get; init; } = 480;
+
+    /// <summary>More games against the champion, on fresh boards, for a candidate that passed the screen.</summary>
+    public int ConfirmGames { get; init; } = 960;
+
+    /// <summary>Games against a mix of the starting weights and past champions (the no-regression check).</summary>
+    public int RegressionGames { get; init; } = 480;
 
     /// <summary>Size of a variation, relative to each weight's scale.</summary>
     public double Sigma { get; init; } = 0.1;
@@ -163,21 +169,61 @@ public sealed class Trainer
                 state.Mean[j] += _o.LearningRate * _o.Sigma * state.Scale[j] * g / _o.Pairs;
             }
 
-        // Challenge: the moved weights against three copies of the champion. Crown only on a clear win.
-        double challenge = WinRate(state.Mean, new[] { state.Champion }, _o.ChallengeGames, Seed(state.Generation, 500_000));
-        state.GamesPlayed += _o.ChallengeGames;
-        double bar = 0.25 + 1.96 * Math.Sqrt(0.25 * 0.75 / _o.ChallengeGames);
-        if (challenge > bar)
+        if (Challenge(state, state.Mean, out string verdict))
         {
             state.Pool.Insert(0, state.Champion);
             if (state.Pool.Count > _o.PoolSize)
                 state.Pool.RemoveAt(state.Pool.Count - 1);
             state.Champion = (double[])state.Mean.Clone();
             state.ChampionsCrowned++;
-            _log($"  new champion: {100 * challenge:F1}% against the old one (needed {100 * bar:F1}%)");
+            _log($"  new champion: {verdict}");
         }
         return (plus.Sum() + minus.Sum()) / (2 * _o.Pairs);
     }
+
+    /// <summary>
+    /// Whether <paramref name="candidate"/> should replace the champion. Three stages, so lucky results don't crown false
+    /// champions (the first overnight run crowned 169 without getting stronger than the start after the first hours):
+    /// <list type="number">
+    /// <item>Screen: <see cref="TrainerOptions.ChallengeGames"/> against three champions, above 25% at 95% confidence.</item>
+    /// <item>Confirm: <see cref="TrainerOptions.ConfirmGames"/> more on fresh boards; all games together must be above 25%
+    /// at 99% confidence.</item>
+    /// <item>No regression: at least 25% in <see cref="TrainerOptions.RegressionGames"/> against a mix of the starting
+    /// weights and past champions (it mustn't beat the champion while losing to older bots).</item>
+    /// </list>
+    /// Played games are counted into the state. <paramref name="verdict"/> says how it went.
+    /// </summary>
+    public bool Challenge(TrainerState state, double[] candidate, out string verdict)
+    {
+        int n1 = _o.ChallengeGames;
+        double screen = WinRate(candidate, new[] { state.Champion }, n1, Seed(state.Generation, 500_000));
+        state.GamesPlayed += n1;
+        double bar1 = Bar(n1, 1.96);
+        if (screen <= bar1)
+        {
+            verdict = $"screen {100 * screen:F1}% (needed {100 * bar1:F1}%)";
+            return false;
+        }
+
+        int n2 = _o.ConfirmGames;
+        double confirm = WinRate(candidate, new[] { state.Champion }, n2, Seed(state.Generation, 600_000));
+        state.GamesPlayed += n2;
+        double both = (screen * n1 + confirm * n2) / (n1 + n2), bar2 = Bar(n1 + n2, 2.58);
+        if (both <= bar2)
+        {
+            verdict = $"screen {100 * screen:F1}%, then {100 * both:F1}% over {n1 + n2} games (needed {100 * bar2:F1}%)";
+            return false;
+        }
+
+        var older = state.Pool.Prepend(state.Start).ToArray();
+        double regression = WinRate(candidate, older, _o.RegressionGames, Seed(state.Generation, 700_000));
+        state.GamesPlayed += _o.RegressionGames;
+        verdict = $"{100 * both:F1}% against the champion over {n1 + n2} games (needed {100 * bar2:F1}%), {100 * regression:F1}% against older bots";
+        return regression >= 0.25;
+    }
+
+    /// <summary>The win share that beats a fair 25% with the given confidence (z) over n games.</summary>
+    private static double Bar(int games, double z) => 0.25 + z * Math.Sqrt(0.25 * 0.75 / games);
 
     private double[] Perturb(TrainerState state, double[] noise, int sign)
     {
