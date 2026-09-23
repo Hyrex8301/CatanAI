@@ -14,6 +14,7 @@ public sealed class BotWeights
         ["vp"] = 10,
         ["prod_brick"] = 30, ["prod_lumber"] = 30, ["prod_wool"] = 22, ["prod_grain"] = 28, ["prod_ore"] = 28,
         ["diversity"] = 2,
+        ["city_combo"] = 20, ["road_combo"] = 15, ["dev_combo"] = 10,
         ["harbor_2to1"] = 15, ["harbor_3to1"] = 2,
         ["hand_total"] = 1.2, ["hand_over7"] = -1.5,
         ["can_road"] = 0.5, ["can_settlement"] = 3, ["can_city"] = 3, ["can_dev"] = 1,
@@ -33,7 +34,7 @@ public sealed class BotWeights
     {
         "vp",
         "prod_brick", "prod_lumber", "prod_wool", "prod_grain", "prod_ore",
-        "diversity", "harbor_2to1", "harbor_3to1",
+        "diversity", "city_combo", "road_combo", "dev_combo", "harbor_2to1", "harbor_3to1",
         "hand_total", "hand_over7", "can_road", "can_settlement", "can_city", "can_dev",
         "settle_spots", "best_spot_pips", "road_length", "longest_road_gap", "knights", "army_gap",
         "dev_cards", "robber_blocked", "opp_max", "opp_mean",

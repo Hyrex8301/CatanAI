@@ -15,6 +15,10 @@ game/scenes/Main.tscn
 
 # Sim tool output worth keeping goes in tests/, not here
 /failures/
+/records/
+
+# Training runs (checkpoints, logs); copy the weights worth keeping to game/bots/
+/training/
 
 # Local tool settings
 .claude/

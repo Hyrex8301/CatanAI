@@ -24,6 +24,7 @@ static class Sim
                 "replay" => Replay(options),
                 "bench" => Bench(options),
                 "match" => Match(options),
+                "train" => Train(options),
                 _ => Usage(),
             };
         }
@@ -46,6 +47,9 @@ static class Sim
               match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate]
                                                                            A vs B with rotated seats; A's win rate and 95% CI
                     BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
+              train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
+                                                                           self-play training; resumes if DIR has a checkpoint;
+                                                                           Ctrl+C stops after the current generation
             """);
         return 2;
     }
@@ -169,6 +173,35 @@ static class Sim
         Console.WriteLine($"{a} vs {b} ({(twoVsTwo ? "2v2" : "1v3")}): {games} games, {games / sw.Elapsed.TotalSeconds:F1} games/s, " +
                           $"avg turns {results.Average(r => r.Turns):F0}, draws {games - decided}");
         Console.WriteLine($"{a} wins {100 * p:F1}% ± {100 * ci:F1}% (equal strength would be {100 * fair:F0}%)");
+        return 0;
+    }
+
+    // ---- train ----
+
+    private static int Train(Options o)
+    {
+        string outDir = o.String("out", "training/run");
+        TimeSpan duration = o.Flag("minutes") ? TimeSpan.FromMinutes(o.Int("minutes", 10)) : TimeSpan.FromHours(o.Int("hours", 8));
+        var options = new TrainerOptions
+        {
+            OutDir = outDir,
+            Duration = duration,
+            MaxGenerations = o.Flag("generations") ? o.Int("generations", 1) : null,
+            Threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2)),
+            Seed = o.ULong("seed", 1),
+        };
+        var start = o.Flag("from") ? BotWeights.Load(o.String("from", "")) : new BotWeights();
+
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true; // don't kill the process: finish the generation and checkpoint
+            cts.Cancel();
+            Console.WriteLine("Stopping after this generation...");
+        };
+
+        Console.WriteLine($"Training into {outDir} for up to {duration.TotalHours:F1} h on {options.Threads} threads. Ctrl+C to stop safely.");
+        new Trainer(options, line => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}")).Run(start, cts.Token);
         return 0;
     }
 

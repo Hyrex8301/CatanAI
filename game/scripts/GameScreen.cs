@@ -120,12 +120,20 @@ public partial class GameScreen : Control
         int turnOffset = resume?.Actions.Count ?? 0;
         var agents = new IPlayerAgent[GameConstants.PlayerCount];
         for (int seat = 0; seat < agents.Length; seat++)
-            agents[seat] = seat == _setup.HumanSeat ? _human : new RandomBot(_setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919);
+            agents[seat] = seat == _setup.HumanSeat ? _human
+                : new SmartBot(BotWeightsFile(), SmartBotSettings.Play, _setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919);
 
         if (resume is not null)
             return GameRunner.Resume(resume, agents, new RngChance(_setup.ChanceSeed ^ (ulong)resume.Actions.Count * 0x9E3779B97F4A7C15UL));
         var state = new GameState(BoardGenerator.Balanced(new Rng(_setup.BoardSeed)), _options.ToSettings());
         return new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
+    }
+
+    /// <summary>The trained weights shipped with the game (game/bots/best.json), or the hand-set defaults if there are none yet.</summary>
+    private static BotWeights BotWeightsFile()
+    {
+        string path = ProjectSettings.GlobalizePath("res://bots/best.json");
+        return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
     }
 
     private void StartGame() => RunGame();

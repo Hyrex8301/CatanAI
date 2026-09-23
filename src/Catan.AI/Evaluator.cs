@@ -15,6 +15,8 @@ public sealed class Evaluator
     private const int R = GameConstants.ResourceCount;
     private const int D = GameConstants.DevCardTypeCount;
 
+    private static readonly int FCityCombo = I("city_combo"), FRoadCombo = I("road_combo"), FDevCombo = I("dev_combo");
+
     private static readonly int FVp = I("vp"), FProd = I("prod_brick"), FDiversity = I("diversity"), FHarbor2 = I("harbor_2to1"),
         FHarbor3 = I("harbor_3to1"), FHand = I("hand_total"), FOver7 = I("hand_over7"), FCanRoad = I("can_road"),
         FCanSettlement = I("can_settlement"), FCanCity = I("can_city"), FCanDev = I("can_dev"), FSpots = I("settle_spots"),
@@ -160,6 +162,12 @@ public sealed class Evaluator
                     harbor2 += p / 36.0;
             }
             row[FDiversity] = diversity;
+            // Resources that only pay off together: ore + grain make cities, brick + lumber roads and settlements,
+            // wool + grain + ore dev cards. The weaker of each set limits how often you can build.
+            double brick = prod[seat * R + 0], lumber = prod[seat * R + 1], wool = prod[seat * R + 2], grain = prod[seat * R + 3], ore = prod[seat * R + 4];
+            row[FCityCombo] = Math.Min(ore, grain) / 36.0;
+            row[FRoadCombo] = Math.Min(brick, lumber) / 36.0;
+            row[FDevCombo] = Math.Min(wool, Math.Min(grain, ore)) / 36.0;
             row[FHarbor2] = harbor2;
             row[FHarbor3] = generic[seat] ? 1 : 0;
             row[FHand] = handSize;
