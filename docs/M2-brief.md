@@ -127,6 +127,16 @@ User decisions: colonist layout; icons drawn in code through the skin layer (no 
 
 **Code shape.** New plain C# in `Catan.UI` so it can be tested: `BuildMenu` (button states: affordable, placeable, pieces left, reason), `TradeBuilder` (give / get rows, bank ratios, validation through `IsLegal`), `InteractionMode` (none / build road / settlement / city / robber / Road Building) and turning clicks into actions, `LogText` (log lines as text plus icon runs). Godot: `Hud/HandBar`, `Hud/ActionBar`, `Hud/PlayerCards`, `Hud/TradeWindow`, `Hud/OfferPopups`, `Hud/Toasts`, `Hud/GameOver`, plus `IconSkin` (resource, dev card, knight, road, VP icons) next to `BoardSkin`. An `Animator` queues animations from applied events. The game loop waits for animations to finish before the next bot move (the bot delay still applies).
 
+**Target look (2026-09-23, from the user's colonist.io screenshots; replaces the layout above where they differ).**
+
+- **Board**: dark blue sea; the island has a sandy coast; hexes separated by thin light lines, each with a big terrain picture (brick wall, trees, sheep, wheat, rocks, cactus) above a white rounded-square number tile (bold dark green number, red for 6 and 8, pips underneath). Harbors are small ships with a white sail showing the resource (or "?") and the ratio, joined to their two corners by wooden docks. The robber is a grey pawn. Legal spots are soft yellow circles.
+- **Top left**: small icon buttons (settings menu with Save / Main menu, fullscreen).
+- **Right column**, top to bottom: the log (colored names, inline card, dice and piece icons, a divider between turns); the bank row (bank icon, five resource cards and the dev card deck, each with a count badge); one grey row per opponent (name, avatar with a VP ribbon, card back with hand size, dev card back with count, knights, road length, "…" while thinking); your own larger panel at the bottom.
+- **Dice**: shown beside the row of the player who rolled, with their roll.
+- **Bottom**: your hand in a cream bar along the bottom left (cards with count badges); light-blue square buttons bottom right (Trade, Dev card, Road, Settlement, City with pieces left, End Turn: an hourglass when it isn't your move, ">>" when you can end); above them a status box with your avatar ("Place Settlement", "Your Turn", "Answer Trade") and a timer box.
+- **Trade offers** pop up in the board's top-right corner, one card per offer: the offering player's avatar on top, a row "they give" (green down arrow) and a row "you give" (red up arrow) with card faces, the other players' answers as small avatars with a check or cross, and round buttons: pencil (counter / edit), cross (decline / withdraw), check (accept). Your own offers use the same card; click an accepter's avatar to trade.
+- **Proposing a trade**: the proposal panel grows up out of your hand in the bottom left: a row of the five resources to pick what you want, the "you get" row (people icon, green arrow), the "you give" row (your avatar, red arrow; filled by clicking your hand), and your hand below. Two buttons beside it send the same proposal: the people button (offer to players) and the bank button (trade with the bank at your rates). The Trade button turns into a cross that closes the panel.
+
 **Build order.**
 
 | # | Build | Tests with it | Checkpoint |
@@ -134,7 +144,7 @@ User decisions: colonist layout; icons drawn in code through the skin layer (no 
 | 4 | New layout skeleton; `IconSkin`; hand bar with real card faces; player cards; bank | card grouping, counts from the view | **A2**: the new screen looks right |
 | 5 | Action bar: Trade and Dev card buttons, build modes with costs, pieces left and disabled reasons; clickable dice that show every roll (who rolled what); End Turn; keyboard | bar states over random positions match the legal list | |
 | 6 | Trade window with card faces (players and bank tabs, multi-lot bank trades), open offer strips with answer chips, bot offers with countdown (moved up from 8 at the user's request) | bank ratios and lots are legal; bad picks say why | |
-| 7 | Log with icons; toasts | log text for every event kind, nothing hidden | |
+| 7 | Log with icons (done with the look rebuild); toasts moved to step 9 | log text for every event kind, nothing hidden | |
 | 8 | Discard from the hand, robber and victim popup, dev card play flows | modes produce exactly the legal actions | **B2**: a whole game played through the new UI |
 | 9 | Animations: dice, flashing hexes, flying cards, piece pop, robber slide, turn bar | animation queue ordering; game loop waits | **C2**: feels like colonist |
 | 10 | Game-over overlay with standings and dice histogram; menu restyle; manual play-test checklist | VP breakdown, histogram | **D**: M2 sign-off |

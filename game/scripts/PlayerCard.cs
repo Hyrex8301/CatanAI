@@ -2,74 +2,95 @@ using Catan.UI;
 using Godot;
 
 /// <summary>
-/// One player on the HUD, colonist style: a color avatar, name, big VP, then hand size, dev cards, knights and road length
-/// with icons. The Largest Army / Longest Road stat glows gold for its holder; the acting player gets a colored border.
-/// Everything comes from a <see cref="SeatSummary"/> (the viewer's view only).
+/// One player's row in the right column, colonist style: name over an avatar with a VP ribbon, the card back with hand
+/// size, the dev card back with its count, knights and road length (gold behind them for Largest Army / Longest Road),
+/// and "…" while they think. Your own panel (<see cref="Big"/>) is taller and lighter. Everything comes from a
+/// <see cref="SeatSummary"/> (the viewer's view only).
 /// </summary>
 public partial class PlayerCard : Control
 {
     private SeatSummary? _p;
+    private double _time;
+
+    public bool Big { get; set; }
 
     public PlayerCard() => MouseFilter = MouseFilterEnum.Pass;
 
     public void Show(SeatSummary summary)
     {
         _p = summary;
-        TooltipText = summary.IsYou
-            ? $"You: {summary.Vp} VP" + (summary.HiddenVp > 0 ? $" ({summary.HiddenVp} from Victory Point cards only you can see)" : "")
-            : $"{summary.Name}: {summary.Vp} VP showing";
-        TooltipText += $"\nPieces left: {summary.RoadsLeft} roads, {summary.SettlementsLeft} settlements, {summary.CitiesLeft} cities";
+        TooltipText = (summary.IsYou
+                          ? $"You: {summary.Vp} VP" + (summary.HiddenVp > 0 ? $" ({summary.HiddenVp} from Victory Point cards only you can see)" : "")
+                          : $"{summary.Name}: {summary.Vp} VP showing")
+                      + $"\n{summary.Cards} resource cards, {summary.DevCards} development cards"
+                      + $"\n{summary.Knights} knights played{(summary.LargestArmy ? " (Largest Army)" : "")}, longest road {summary.RoadLength}{(summary.LongestRoad ? " (Longest Road)" : "")}"
+                      + $"\nPieces left: {summary.RoadsLeft} roads, {summary.SettlementsLeft} settlements, {summary.CitiesLeft} cities";
         QueueRedraw();
+    }
+
+    public override void _Process(double delta)
+    {
+        if (_p is { IsActing: true, IsYou: false })
+        {
+            _time += delta;
+            QueueRedraw(); // the thinking dots
+        }
     }
 
     public override void _Draw()
     {
         if (_p is not { } p)
             return;
-        var seatColor = Ui.SeatColor(p.Color);
-        var style = Ui.PanelStyle(p.IsActing ? Ui.Highlight : Ui.PanelFill, radius: 12);
+        var style = Ui.PanelStyle(Big ? Ui.Cream : Ui.RowGray, radius: 6);
+        style.ShadowSize = 2;
         if (p.IsActing)
         {
-            style.BorderColor = seatColor == Colors.White || p.Color == SeatColor.White ? Ui.MutedText : seatColor;
+            style.BorderColor = Ui.Gold;
             style.SetBorderWidthAll(3);
         }
         DrawStyleBox(style, new Rect2(Vector2.Zero, Size));
 
-        // Avatar.
-        var avatar = new Vector2(44, Size.Y / 2);
-        DrawCircle(avatar, 30, seatColor);
-        DrawArc(avatar, 30, 0, Mathf.Tau, 40, p.Color == SeatColor.White ? Ui.MutedText : seatColor.Darkened(0.25f), 2, true);
-        Ui.DrawCentered(this, avatar, p.IsYou ? "You" : p.Name[..1], p.IsYou ? 17 : 26, Ui.OnSeatColor(p.Color), 60);
+        float avatarX = Big ? 64 : 60, r = Big ? 32 : 22;
+        var avatar = new Vector2(avatarX, Big ? Size.Y / 2 + 12 : Size.Y / 2 + 6);
+        if (Big)
+            Ui.DrawCentered(this, new Vector2(Size.X / 2 + 30, 24), p.IsYou ? "You" : p.Name, 24, Ui.Text, Size.X);
+        else
+            Ui.DrawCentered(this, new Vector2(avatarX, 14), p.Name, 16, Ui.Text, 110);
+        Ui.Avatar(this, avatar, r, p.Color, p.IsYou);
+        // The VP ribbon under the avatar.
+        var ribbon = new Rect2(avatar + new Vector2(-r * 0.75f, r * 0.62f), new Vector2(r * 1.5f, Big ? 22 : 17));
+        FlatIcons.Rounded(this, ribbon, Colors.White, 3);
+        DrawRect(ribbon, Ui.PanelBorder, false, 1);
+        Ui.DrawCentered(this, ribbon.GetCenter(), p.Vp.ToString(), Big ? 16 : 13, Ui.Text, 40);
 
-        // Name and status.
-        Ui.DrawLeft(this, new Vector2(88, 24), p.Name, 19, Ui.Text);
-        string status = p.IsActing ? (p.IsYou ? "your move" : "thinking…") : p.IsCurrent ? "their turn" : p.IsYou ? "" : "bot";
-        if (status.Length > 0)
-            Ui.DrawLeft(this, new Vector2(88 + NameWidth(p.Name) + 10, 25), status, 13, p.IsActing ? seatColor.Darkened(0.2f) : Ui.MutedText);
+        if (p.IsActing && !p.IsYou)
+            for (int i = 0; i < 3; i++)
+            {
+                float bounce = Mathf.Sin((float)_time * 6 - i * 0.8f) * 2;
+                DrawCircle(new Vector2(14 + i * 7, avatar.Y + bounce), 2.6f, Ui.Text);
+            }
 
-        // Stats row.
-        float x = 92, y = Size.Y - 26;
-        x = StatCell(x, y, StatIcon.Cards, p.Cards.ToString(), false);
-        x = StatCell(x, y, StatIcon.DevCards, p.DevCards.ToString(), false);
-        x = StatCell(x, y, StatIcon.Knight, p.Knights.ToString(), p.LargestArmy);
-        StatCell(x, y, StatIcon.Road, p.RoadLength.ToString(), p.LongestRoad);
-
-        // Victory points.
-        var vpAt = new Vector2(Size.X - 42, Size.Y / 2 - 6);
-        DrawCircle(vpAt, 26, Ui.Text);
-        Ui.DrawCentered(this, vpAt, p.Vp.ToString(), 26, Colors.White, 60);
-        Ui.DrawCentered(this, vpAt + new Vector2(0, 36), p.HiddenVp > 0 ? $"VP ({p.HiddenVp} hidden)" : "VP", 12, Ui.MutedText, 100);
+        // Cards and stats.
+        float y = Big ? Size.Y / 2 + 16 : Size.Y / 2 + 2;
+        var card = Big ? new Vector2(40, 54) : new Vector2(34, 46);
+        float x = Big ? 124 : 124;
+        var back = new Rect2(new Vector2(x, y - card.Y / 2), card);
+        Icons.Skin.CardBack(this, back, false);
+        Ui.Badge(this, back.Position + new Vector2(card.X, 0), p.Cards);
+        x += card.X + (Big ? 12 : 16);
+        var dev = new Rect2(new Vector2(x, y - card.Y / 2), card);
+        Icons.Skin.CardBack(this, dev, true);
+        Ui.Badge(this, dev.Position + new Vector2(card.X, 0), p.DevCards);
+        x += card.X + (Big ? 26 : 30);
+        Stat(new Vector2(x, y), StatIcon.Knight, p.Knights, p.LargestArmy);
+        Stat(new Vector2(x + (Big ? 52 : 58), y), StatIcon.Road, p.RoadLength, p.LongestRoad);
     }
 
-    private float StatCell(float x, float y, StatIcon icon, string value, bool award)
+    private void Stat(Vector2 at, StatIcon icon, int value, bool award)
     {
-        const float width = 62;
         if (award)
-            FlatIcons.Rounded(this, new Rect2(x - 6, y - 15, width - 4, 30), Ui.Gold, 15);
-        Icons.Skin.Stat(this, new Vector2(x + 10, y), 28, icon, award ? Ui.Text : new Color(0.55f, 0.58f, 0.64f));
-        Ui.DrawLeft(this, new Vector2(x + 26, y), value, 17, Ui.Text);
-        return x + width;
+            DrawCircle(at - new Vector2(0, 8), 17, Ui.Gold);
+        Icons.Skin.Stat(this, at - new Vector2(0, 9), 26, icon, award ? Ui.Text : new Color(0.52f, 0.52f, 0.55f));
+        Ui.DrawCentered(this, at + new Vector2(0, 17), value.ToString(), 16, Ui.Text, 40);
     }
-
-    private static float NameWidth(string name) => ThemeDB.FallbackFont.GetStringSize(name, HorizontalAlignment.Left, -1, 19).X;
 }

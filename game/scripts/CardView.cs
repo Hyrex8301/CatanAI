@@ -15,9 +15,6 @@ public partial class CardView : Control
     public bool Dimmed { get; private set; }
     public bool Clickable { get; set; } = true;
 
-    /// <summary>Show the count badge from 1 card up (trade slots), not only for stacks of 2 or more.</summary>
-    public bool BadgeFromOne { get; set; }
-
     /// <summary>Text in a small label under the count (e.g. "1 new").</summary>
     public string? Note { get; private set; }
 
@@ -60,21 +57,16 @@ public partial class CardView : Control
 
     public override void _Draw()
     {
-        float lift = _hover && Clickable ? 10 : 0;
-        var rect = new Rect2(new Vector2(0, 12 - lift), new Vector2(Size.X, Size.Y - 12));
+        float lift = _hover && Clickable ? 8 : 0;
+        var rect = new Rect2(new Vector2(0, 10 - lift), new Vector2(Size.X, Size.Y - 10));
         Icons.Skin.CardFace(this, rect, IsDev, Type, Dimmed);
-        if (Count > (BadgeFromOne ? 0 : 1))
-        {
-            var badge = rect.Position + new Vector2(rect.Size.X - 6, 6);
-            DrawCircle(badge, 13, Ui.Text);
-            DrawArc(badge, 13, 0, Mathf.Tau, 24, Colors.White, 2, true);
-            Ui.DrawCentered(this, badge, Count.ToString(), 15, Colors.White, 30);
-        }
+        if (Count > 0)
+            Ui.Badge(this, rect.Position + new Vector2(rect.Size.X, 2), Count);
         if (Note is not null)
         {
-            var at = rect.Position + new Vector2(rect.Size.X / 2, rect.Size.Y - 12);
-            FlatIcons.Rounded(this, new Rect2(at - new Vector2(26, 9), new Vector2(52, 18)), Ui.Text, 9);
-            Ui.DrawCentered(this, at, Note, 12, Colors.White, 60);
+            var at = rect.Position + new Vector2(rect.Size.X / 2, rect.Size.Y - 10);
+            FlatIcons.Rounded(this, new Rect2(at - new Vector2(22, 8), new Vector2(44, 16)), Ui.Text, 8);
+            Ui.DrawCentered(this, at, Note, 11, Colors.White, 60);
         }
     }
 }

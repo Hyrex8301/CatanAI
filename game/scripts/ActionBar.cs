@@ -5,90 +5,158 @@ using Catan.UI;
 using Godot;
 
 /// <summary>
-/// The colonist-style bar bottom right: Trade and Buy Development Card, then Road / Settlement / City (each with its cost and
-/// pieces left), the dice, and End Turn. Button states come from <see cref="ActionBarModel"/>; clicks raise
-/// <see cref="Clicked"/> and the game screen decides what happens.
+/// The colonist-style controls bottom right: a row of square buttons (Trade, Dev card, Road, Settlement, City, End Turn)
+/// with a status box ("Your Turn", "Place Settlement", ...) and a timer box above them. Button states come from
+/// <see cref="ActionBarModel"/>; clicks raise <see cref="Clicked"/> and the game screen decides what happens.
 /// </summary>
 public sealed class ActionBar
 {
-    private static readonly BoardSkin Pieces = new FlatSkin();
-    private static readonly Color TileInk = new(0.25f, 0.28f, 0.33f);
-
     private readonly Dictionary<BarItem, ActionTile> _tiles = new();
-    private readonly DiceView _dice;
-    private Color _seatColor = Colors.White;
+    private readonly Label _status, _timer;
+    private readonly StatusAvatar _avatar;
+    private bool _tradeOpen, _canEnd;
 
     public event Action<BarItem>? Clicked;
 
-    public ActionBar(Control parent, Rect2 rect)
+    public ActionBar(Control parent, Vector2 buttonsAt, Rect2 statusRect, Rect2 timerRect, SeatColor you)
     {
-        var panel = new Panel { Position = rect.Position, Size = rect.Size, MouseFilter = Control.MouseFilterEnum.Stop };
-        panel.AddThemeStyleboxOverride("panel", Ui.PanelStyle());
-        parent.AddChild(panel);
+        float x = buttonsAt.X;
+        foreach (var item in new[] { BarItem.Trade, BarItem.BuyDev, BarItem.Road, BarItem.Settlement, BarItem.City, BarItem.EndTurn })
+        {
+            var tile = new ActionTile { Position = new Vector2(x, buttonsAt.Y), Size = ActionTile.TileSize, DrawIcon = IconFor(item) };
+            tile.Clicked += () => Clicked?.Invoke(item);
+            parent.AddChild(tile);
+            _tiles[item] = tile;
+            x += ActionTile.TileSize.X + 4;
+        }
 
-        float x = 12, y = (rect.Size.Y - ActionTile.TileSize.Y) / 2 + 4;
-        Tile(panel, BarItem.Trade, "Trade", null, ref x, y, (c, at, s) => TradeIcon(c, at, s));
-        Tile(panel, BarItem.BuyDev, "Dev card", Costs.DevCard, ref x, y,
-            (c, at, s) => Icons.Skin.CardBack(c, new Rect2(at - new Vector2(s * 0.34f, s * 0.46f), new Vector2(s * 0.68f, s * 0.92f)), true));
-        x += 10;
-        Tile(panel, BarItem.Road, "Road", Costs.Road, ref x, y,
-            (c, at, s) => Pieces.Road(c, at + new Vector2(-s * 0.4f, s * 0.25f), at + new Vector2(s * 0.4f, -s * 0.25f), s * 2.2f, _seatColor));
-        Tile(panel, BarItem.Settlement, "Settlement", Costs.Settlement, ref x, y, (c, at, s) => Pieces.Settlement(c, at, s * 3.2f, _seatColor));
-        Tile(panel, BarItem.City, "City", Costs.City, ref x, y, (c, at, s) => Pieces.City(c, at, s * 2.4f, _seatColor));
+        var status = new PanelContainer { Position = statusRect.Position, Size = statusRect.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
+        status.AddThemeStyleboxOverride("panel", Ui.PanelStyle(Ui.Cream, radius: 6, margin: 4));
+        var row = new HBoxContainer();
+        _avatar = new StatusAvatar(you) { CustomMinimumSize = new Vector2(34, 34) };
+        row.AddChild(_avatar);
+        _status = Ui.Label("", 17);
+        _status.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _status.HorizontalAlignment = HorizontalAlignment.Center;
+        _status.ClipText = true;
+        row.AddChild(_status);
+        status.AddChild(row);
+        parent.AddChild(status);
 
-        _dice = new DiceView { Position = new Vector2(x + 4, y - 6), Size = new Vector2(104, ActionTile.TileSize.Y) };
-        _dice.Clicked += () => Clicked?.Invoke(BarItem.Roll);
-        panel.AddChild(_dice);
-        x += 116;
-
-        var end = Tile(panel, BarItem.EndTurn, "End turn", null, ref x, y, (c, at, s) => EndIcon(c, at, s));
-        end.Fill = new Color(0.82f, 0.95f, 0.84f);
+        var timer = new PanelContainer { Position = timerRect.Position, Size = timerRect.Size, MouseFilter = Control.MouseFilterEnum.Ignore };
+        timer.AddThemeStyleboxOverride("panel", Ui.PanelStyle(Ui.Cream, radius: 6, margin: 4));
+        _timer = Ui.Label("", 18);
+        _timer.HorizontalAlignment = HorizontalAlignment.Center;
+        _timer.VerticalAlignment = VerticalAlignment.Center;
+        timer.AddChild(_timer);
+        parent.AddChild(timer);
     }
 
-    public DiceView Dice => _dice;
-
-    public void Update(PlayerView v, IReadOnlyList<GameAction>? legal, BuildMode mode, Color seatColor)
+    public void Update(PlayerView v, IReadOnlyList<GameAction>? legal, BuildMode mode, bool tradeOpen)
     {
-        _seatColor = seatColor;
+        _tradeOpen = tradeOpen;
         foreach (var (item, tile) in _tiles)
         {
             var state = ActionBarModel.State(item, v, legal);
             bool selected = mode != BuildMode.None && ActionBarModel.ModeOf(item) == mode;
-            tile.Set(state.Enabled, state.Tooltip, selected, state.Left);
+            if (item == BarItem.EndTurn)
+                _canEnd = state.Enabled;
+            string tip = item == BarItem.Trade && tradeOpen ? "Close the trade panel (Esc)" : state.Tooltip;
+            tile.Set(state.Enabled, tip, selected, item is BarItem.Road or BarItem.Settlement or BarItem.City ? state.Left : null);
         }
-        var roll = ActionBarModel.State(BarItem.Roll, v, legal);
-        _dice.Set(roll.Enabled, roll.Tooltip);
     }
 
-    private ActionTile Tile(Control panel, BarItem item, string title, ResourceSet? cost, ref float x, float y, Action<CanvasItem, Vector2, float> icon)
+    /// <summary>The short status text ("Your Turn") and its longer help as a tooltip; red for a refused move.</summary>
+    public void SetStatus(string text, string? help = null, bool error = false)
     {
-        var tile = new ActionTile { Title = title, Cost = cost, DrawIcon = icon, Position = new Vector2(x, y), Size = ActionTile.TileSize };
-        tile.Clicked += () => Clicked?.Invoke(item);
-        panel.AddChild(tile);
-        _tiles[item] = tile;
-        x += ActionTile.TileSize.X + 6;
-        return tile;
+        _status.Text = text;
+        _status.TooltipText = help ?? "";
+        _status.AddThemeColorOverride("font_color", error ? Ui.Bad : Ui.Text);
     }
 
-    /// <summary>Two arrows passing each other: give and get.</summary>
-    private static void TradeIcon(CanvasItem c, Vector2 at, float s)
+    public void SetTimer(string text) => _timer.Text = text;
+
+    private Action<CanvasItem, Vector2, float, Color> IconFor(BarItem item) => item switch
     {
-        float w = s * 0.4f, h = s * 0.16f, head = s * 0.16f, thick = s * 0.09f;
-        var top = at - new Vector2(0, h);
-        c.DrawLine(top - new Vector2(w, 0), top + new Vector2(w - head * 0.5f, 0), TileInk, thick);
-        c.DrawColoredPolygon(new[] { top + new Vector2(w, 0), top + new Vector2(w - head, -head * 0.7f), top + new Vector2(w - head, head * 0.7f) }, TileInk);
-        var bottom = at + new Vector2(0, h);
-        var green = new Color(0.2f, 0.6f, 0.3f);
-        c.DrawLine(bottom + new Vector2(w, 0), bottom - new Vector2(w - head * 0.5f, 0), green, thick);
-        c.DrawColoredPolygon(new[] { bottom - new Vector2(w, 0), bottom - new Vector2(w - head, -head * 0.7f), bottom - new Vector2(w - head, head * 0.7f) }, green);
+        BarItem.Trade => (c, at, s, ink) => { if (_tradeOpen) Cross(c, at, s, ink); else TradeIcon(c, at, s, ink); },
+        BarItem.BuyDev => (c, at, s, _) => Icons.Skin.CardBack(c, new Rect2(at - new Vector2(s * 0.34f, s * 0.46f), new Vector2(s * 0.68f, s * 0.92f)), true),
+        BarItem.Road => (c, at, s, ink) => Piece(c, new[] { at + new Vector2(-s * 0.1f, -s * 0.45f), at + new Vector2(s * 0.1f, -s * 0.45f), at + new Vector2(s * 0.1f, s * 0.45f), at + new Vector2(-s * 0.1f, s * 0.45f) }, ink),
+        BarItem.Settlement => (c, at, s, ink) => Piece(c, new[]
+        {
+            at + new Vector2(-s * 0.36f, s * 0.36f), at + new Vector2(-s * 0.36f, -s * 0.05f), at + new Vector2(0, -s * 0.4f),
+            at + new Vector2(s * 0.36f, -s * 0.05f), at + new Vector2(s * 0.36f, s * 0.36f),
+        }, ink),
+        BarItem.City => (c, at, s, ink) => Piece(c, new[]
+        {
+            at + new Vector2(-s * 0.46f, s * 0.36f), at + new Vector2(-s * 0.46f, -s * 0.12f), at + new Vector2(-s * 0.22f, -s * 0.4f),
+            at + new Vector2(0, -s * 0.12f), at + new Vector2(0, -s * 0.02f), at + new Vector2(s * 0.46f, -s * 0.02f), at + new Vector2(s * 0.46f, s * 0.36f),
+        }, ink),
+        _ => (c, at, s, ink) => { if (_canEnd) Skip(c, at, s, ink); else Hourglass(c, at, s, ink); },
+    };
+
+    private static void Piece(CanvasItem c, Vector2[] shape, Color ink)
+    {
+        c.DrawColoredPolygon(shape, ink.Lightened(0.25f));
+        var closed = new Vector2[shape.Length + 1];
+        shape.CopyTo(closed, 0);
+        closed[^1] = shape[0];
+        c.DrawPolyline(closed, ink.Darkened(0.2f), 2, true);
     }
 
-    /// <summary>A "skip to next" sign: a triangle and a bar.</summary>
-    private static void EndIcon(CanvasItem c, Vector2 at, float s)
+    /// <summary>Two cards with arrows going round them: trading.</summary>
+    private static void TradeIcon(CanvasItem c, Vector2 at, float s, Color ink)
     {
-        var ink = new Color(0.12f, 0.45f, 0.22f);
-        float r = s * 0.3f;
-        c.DrawColoredPolygon(new[] { at + new Vector2(-r * 0.8f, -r), at + new Vector2(r * 0.6f, 0), at + new Vector2(-r * 0.8f, r) }, ink);
-        c.DrawRect(new Rect2(at + new Vector2(r * 0.7f, -r), new Vector2(r * 0.35f, r * 2)), ink);
+        FlatIcons.Rounded(c, new Rect2(at + new Vector2(-s * 0.42f, -s * 0.42f), new Vector2(s * 0.42f, s * 0.56f)), new Color(0.55f, 0.75f, 0.45f), 3);
+        FlatIcons.Rounded(c, new Rect2(at + new Vector2(0, -s * 0.12f), new Vector2(s * 0.42f, s * 0.56f)), new Color(0.75f, 0.5f, 0.45f), 3);
+        c.DrawArc(at, s * 0.42f, -2.6f, -1.0f, 12, ink, 3, true);
+        c.DrawArc(at, s * 0.42f, 0.5f, 2.1f, 12, ink, 3, true);
+        c.DrawColoredPolygon(new[] { at + new Vector2(s * 0.28f, -s * 0.42f), at + new Vector2(s * 0.12f, -s * 0.48f), at + new Vector2(s * 0.2f, -s * 0.28f) }, ink);
+        c.DrawColoredPolygon(new[] { at + new Vector2(-s * 0.28f, s * 0.42f), at + new Vector2(-s * 0.12f, s * 0.48f), at + new Vector2(-s * 0.2f, s * 0.28f) }, ink);
     }
+
+    private static void Cross(CanvasItem c, Vector2 at, float s, Color ink)
+    {
+        float r = s * 0.36f;
+        c.DrawLine(at + new Vector2(-r, -r), at + new Vector2(r, r), Colors.White, s * 0.2f, true);
+        c.DrawLine(at + new Vector2(r, -r), at + new Vector2(-r, r), Colors.White, s * 0.2f, true);
+        c.DrawLine(at + new Vector2(-r, -r), at + new Vector2(r, r), ink, s * 0.12f, true);
+        c.DrawLine(at + new Vector2(r, -r), at + new Vector2(-r, r), ink, s * 0.12f, true);
+    }
+
+    private static void Hourglass(CanvasItem c, Vector2 at, float s, Color ink)
+    {
+        float w = s * 0.3f, h = s * 0.42f;
+        c.DrawRect(new Rect2(at + new Vector2(-w * 1.2f, -h - 4), new Vector2(w * 2.4f, 5)), ink);
+        c.DrawRect(new Rect2(at + new Vector2(-w * 1.2f, h - 1), new Vector2(w * 2.4f, 5)), ink);
+        var glass = new[] { at + new Vector2(-w, -h), at + new Vector2(w, -h), at + new Vector2(w * 0.15f, 0), at + new Vector2(w, h), at + new Vector2(-w, h), at + new Vector2(-w * 0.15f, 0) };
+        c.DrawColoredPolygon(glass, Colors.White);
+        c.DrawPolyline(new[] { glass[0], glass[1], glass[2], glass[3], glass[4], glass[5], glass[0] }, ink, 2.5f, true);
+        c.DrawColoredPolygon(new[] { at + new Vector2(-w * 0.7f, h - 1), at + new Vector2(w * 0.7f, h - 1), at + new Vector2(0, h * 0.45f) }, ink.Lightened(0.3f));
+    }
+
+    /// <summary>"&gt;&gt;": end your turn.</summary>
+    private static void Skip(CanvasItem c, Vector2 at, float s, Color ink)
+    {
+        float r = s * 0.34f;
+        foreach (float dx in new[] { -r * 0.55f, r * 0.45f })
+        {
+            var tri = new[] { at + new Vector2(dx - r * 0.5f, -r), at + new Vector2(dx + r * 0.5f, 0), at + new Vector2(dx - r * 0.5f, r) };
+            c.DrawColoredPolygon(tri, Colors.White);
+            c.DrawPolyline(new[] { tri[0], tri[1], tri[2], tri[0] }, ink, 2.5f, true);
+        }
+    }
+}
+
+/// <summary>Your avatar in the status box.</summary>
+public partial class StatusAvatar : Control
+{
+    private readonly SeatColor _color;
+
+    public StatusAvatar(SeatColor color) => _color = color;
+
+    public StatusAvatar() : this(SeatColor.White)
+    {
+    }
+
+    public override void _Draw() => Ui.Avatar(this, Size / 2, Size.X / 2, _color, true);
 }

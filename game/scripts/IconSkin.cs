@@ -16,6 +16,9 @@ public abstract class IconSkin
 
     public abstract void DevCard(CanvasItem c, Vector2 at, float size, DevCardType type);
 
+    /// <summary>The big picture on a board hex (lighter, made to sit on the terrain color).</summary>
+    public abstract void Terrain(CanvasItem c, Vector2 at, float size, Terrain terrain);
+
     public abstract void Stat(CanvasItem c, Vector2 at, float size, StatIcon icon, Color color);
 
     /// <summary>A resource or dev card face filling <paramref name="rect"/>.</summary>
@@ -44,7 +47,7 @@ public sealed class FlatIcons : IconSkin
     };
 
     private static readonly Color DevColor = new(0.42f, 0.30f, 0.62f);
-    private static readonly Color BackColor = new(0.18f, 0.30f, 0.52f);
+    private static readonly Color BackColor = new(0.14f, 0.34f, 0.72f);
     private static readonly Color Ink = new(0.16f, 0.14f, 0.13f);
     private static readonly Color Gold = new(0.98f, 0.80f, 0.20f);
 
@@ -78,6 +81,67 @@ public sealed class FlatIcons : IconSkin
                 Plus(c, at + new Vector2(0, s * 0.02f), s * 0.28f);
                 break;
             default: Crown(c, at, s); break;
+        }
+    }
+
+    public override void Terrain(CanvasItem c, Vector2 at, float s, Terrain terrain)
+    {
+        switch (terrain)
+        {
+            case Catan.Core.Terrain.Hills:
+            {
+                // A pale brick wall, three rows, with a pebble or two.
+                var brick = new Color(0.98f, 0.82f, 0.72f);
+                float w = s * 0.24f, h = s * 0.13f, gap = s * 0.035f;
+                int[] counts = { 2, 3, 2 };
+                for (int row = 0; row < 3; row++)
+                {
+                    float y = at.Y + (row - 1) * (h + gap) - h / 2;
+                    float rowWidth = counts[row] * w + (counts[row] - 1) * gap;
+                    for (int i = 0; i < counts[row]; i++)
+                    {
+                        var rect = new Rect2(at.X - rowWidth / 2 + i * (w + gap), y, w, h);
+                        Rounded(c, rect, brick, 2);
+                        c.DrawRect(new Rect2(rect.Position + new Vector2(0, h * 0.7f), new Vector2(w, h * 0.3f)), new Color(0.85f, 0.55f, 0.45f));
+                    }
+                }
+                c.DrawCircle(at + new Vector2(-s * 0.5f, s * 0.22f), s * 0.05f, new Color(0.75f, 0.45f, 0.35f));
+                c.DrawCircle(at + new Vector2(s * 0.48f, s * 0.2f), s * 0.04f, new Color(0.75f, 0.45f, 0.35f));
+                break;
+            }
+            case Catan.Core.Terrain.Forest:
+                Pine(c, at + new Vector2(0, s * 0.05f), s * 0.95f);
+                break;
+            case Catan.Core.Terrain.Pasture:
+                Sheep(c, at + new Vector2(-s * 0.08f, s * 0.02f), s * 1.05f);
+                break;
+            case Catan.Core.Terrain.Fields:
+                WheatColored(c, at + new Vector2(0, -s * 0.1f), s * 0.9f, new Color(0.85f, 0.6f, 0.15f), new Color(1f, 0.9f, 0.55f));
+                break;
+            case Catan.Core.Terrain.Mountains:
+            {
+                var rock = new Color(0.96f, 0.96f, 0.95f);
+                var shade = new Color(0.72f, 0.74f, 0.77f);
+                foreach (var (o, r) in new[] { (new Vector2(-0.28f, 0.08f), 0.16f), (new Vector2(0.25f, 0.1f), 0.15f), (new Vector2(0, -0.08f), 0.2f), (new Vector2(0.02f, 0.16f), 0.14f) })
+                {
+                    c.DrawCircle(at + o * s + new Vector2(0, s * 0.03f), r * s, shade);
+                    c.DrawCircle(at + o * s, r * s, rock);
+                }
+                break;
+            }
+            default:
+            {
+                // A cactus and a dry twig.
+                var green = new Color(0.36f, 0.58f, 0.3f);
+                float w = s * 0.12f;
+                Rounded(c, new Rect2(at + new Vector2(-w / 2, -s * 0.45f), new Vector2(w, s * 0.8f)), green, (int)(w / 2));
+                Rounded(c, new Rect2(at + new Vector2(-s * 0.28f, -s * 0.2f), new Vector2(w * 0.8f, s * 0.3f)), green, (int)(w / 2));
+                Rounded(c, new Rect2(at + new Vector2(-s * 0.28f, s * 0.02f), new Vector2(s * 0.24f, w * 0.8f)), green, (int)(w / 2));
+                Rounded(c, new Rect2(at + new Vector2(s * 0.18f, -s * 0.32f), new Vector2(w * 0.8f, s * 0.3f)), green, (int)(w / 2));
+                Rounded(c, new Rect2(at + new Vector2(s * 0.04f, -s * 0.1f), new Vector2(s * 0.24f, w * 0.8f)), green, (int)(w / 2));
+                c.DrawLine(at + new Vector2(s * 0.35f, s * 0.4f), at + new Vector2(s * 0.62f, s * 0.3f), new Color(0.6f, 0.45f, 0.3f), 2);
+                break;
+            }
         }
     }
 
@@ -124,9 +188,17 @@ public sealed class FlatIcons : IconSkin
         var inner = rect.Grow(-Mathf.Max(1.5f, rect.Size.X * 0.08f));
         Rounded(c, inner, isDev ? DevColor : BackColor, radius * 0.7f);
         var m = inner.GetCenter();
-        float d = inner.Size.X * 0.28f;
-        c.DrawColoredPolygon(new[] { m + new Vector2(0, -d * 1.3f), m + new Vector2(d, 0), m + new Vector2(0, d * 1.3f), m + new Vector2(-d, 0) },
-            isDev ? Gold : new Color(1, 1, 1, 0.35f));
+        if (isDev)
+        {
+            // A little road-and-hammer emblem on a lighter disc, like the deck art.
+            c.DrawCircle(m, inner.Size.X * 0.34f, DevColor.Lightened(0.3f));
+            c.DrawLine(m + new Vector2(-inner.Size.X * 0.2f, inner.Size.X * 0.2f), m + new Vector2(inner.Size.X * 0.2f, -inner.Size.X * 0.2f), new Color(0.55f, 0.8f, 0.3f), Mathf.Max(1.5f, inner.Size.X * 0.12f));
+        }
+        else
+        {
+            int size = (int)(inner.Size.X * 0.75f);
+            c.DrawString(ThemeDB.FallbackFont, new Vector2(inner.Position.X, m.Y + size * 0.36f), "?", HorizontalAlignment.Center, inner.Size.X, size, Colors.White);
+        }
     }
 
     // ---- Pictures ----
@@ -178,10 +250,25 @@ public sealed class FlatIcons : IconSkin
         c.DrawCircle(at + new Vector2(r * 2.25f, -r * 0.55f), r * 0.12f, Colors.White);
     }
 
-    private static void Wheat(CanvasItem c, Vector2 at, float s)
+    private static void Pine(CanvasItem c, Vector2 at, float s)
     {
-        var stalk = new Color(0.62f, 0.45f, 0.12f);
-        var grain = new Color(0.86f, 0.62f, 0.14f);
+        var dark = new Color(0.1f, 0.38f, 0.16f);
+        var light = new Color(0.3f, 0.66f, 0.32f);
+        c.DrawRect(new Rect2(at + new Vector2(-s * 0.05f, s * 0.25f), new Vector2(s * 0.1f, s * 0.18f)), new Color(0.45f, 0.28f, 0.14f));
+        for (int i = 0; i < 3; i++)
+        {
+            float y = at.Y + s * (0.3f - i * 0.2f), w = s * (0.36f - i * 0.08f);
+            var tri = new[] { new Vector2(at.X - w, y), new Vector2(at.X + w, y), new Vector2(at.X, y - s * 0.3f) };
+            c.DrawColoredPolygon(tri, dark);
+            c.DrawPolyline(new[] { tri[0], tri[2], tri[1] }, light, Mathf.Max(1.5f, s * 0.03f), true);
+        }
+    }
+
+    private static void Wheat(CanvasItem c, Vector2 at, float s) =>
+        WheatColored(c, at, s, new Color(0.62f, 0.45f, 0.12f), new Color(0.86f, 0.62f, 0.14f));
+
+    private static void WheatColored(CanvasItem c, Vector2 at, float s, Color stalk, Color grain)
+    {
         for (int k = -1; k <= 1; k++)
         {
             float angle = k * 0.28f;

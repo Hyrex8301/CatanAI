@@ -9,26 +9,30 @@ using Catan.UI;
 using Godot;
 
 /// <summary>
-/// The playable game screen (1600×900), laid out like colonist.io. Runs the game loop: you in a random seat through a
-/// <see cref="HumanAgent"/>, SmartBots in the others, with a pause after each bot move. Everything drawn comes from your
-/// seat's PlayerView. Board moves: click a highlighted spot. Trades: the Trade button or a card in your hand opens the trade
-/// window. Other moves: the buttons bottom right. Saves: the Save button, plus an autosave at the end of each of your turns.
-/// Esc closes the trade window or cancels a choice.
+/// The playable game screen (1600×900), laid out like colonist.io: the board on the sea; the log, bank and player rows down
+/// the right; your hand bottom left and the square action buttons bottom right under a status box. Trade offers pop up in
+/// the board's top-right corner; proposing a trade opens a panel that grows out of your hand. The dice sit beside the row
+/// of the player who rolled. You play a random seat through a <see cref="HumanAgent"/>, SmartBots the others, with a pause
+/// after each bot move. Everything drawn comes from your seat's PlayerView. Esc closes a panel or cancels a choice.
 /// </summary>
 public partial class GameScreen : Control
 {
-    // Layout (1600×900): board top left with the bank in its corner, log and player cards down the right,
-    // your hand and the action buttons along the bottom.
-    public static readonly Rect2 BoardRect = new(10, 10, 1150, 648);
-    public static readonly Rect2 BankRect = new(868, 18, 284, 76);
-    public static readonly Rect2 TradesRect = new(10, 196, 580, 460); // the window shrinks to fit, bottom edge fixed
-    public static readonly Rect2 LogRect = new(1172, 10, 418, 462);
-    public static readonly Rect2 PlayersRect = new(1172, 482, 418, 408);
-    public static readonly Rect2 HandRect = new(10, 712, 560, 178);
-    public static readonly Rect2 ActionsRect = new(580, 712, 580, 178);
-    public static readonly Rect2 ChoicesRect = new(966, 250, 190, 402);
-    public static readonly Rect2 DiscardRect = new(22, 520, 360, 132);
-    private const float PlayerCardHeight = 96;
+    // Layout (1600×900).
+    private static readonly Rect2 BoardRect = new(140, 18, 1010, 744);
+    private static readonly Rect2 LogRect = new(1258, 4, 338, 378);
+    private static readonly Rect2 BankRect = new(1258, 388, 338, 70);
+    private const float RowTop = 464, RowHeight = 86, RowGap = 4;
+    private static readonly Rect2 YouRect = new(1258, 734, 338, 162);
+    private static readonly Rect2 HandRect = new(4, 802, 740, 94);
+    private static readonly Vector2 ButtonsAt = new(750, 808);
+    private static readonly Rect2 StatusRect = new(916, 758, 250, 44);
+    private static readonly Rect2 TimerRect = new(1170, 758, 80, 44);
+    private static readonly Rect2 ProposalRect = new(4, 554, 740, 242);
+    private static readonly Rect2 BankButtonRect = new(750, 636, 80, 80);
+    private static readonly Rect2 PeopleButtonRect = new(750, 720, 80, 80);
+    private static readonly Vector2 PopupsTopRight = new(1250, 8);
+    private static readonly Rect2 ChoicesRect = new(8, 110, 210, 420);
+    private static readonly Rect2 DiscardRect = new(4, 644, 360, 150);
 
     private GameOptions _options = null!;
     private GameSetup _setup = null!;
@@ -41,20 +45,22 @@ public partial class GameScreen : Control
     private BankView _bank = null!;
     private readonly PlayerCard[] _playerCards = new PlayerCard[GameConstants.PlayerCount];
     private HandBar _hand = null!;
-    private Label _prompt = null!;
     private LogPanel _log = null!;
-    private ActionPanel _actions = null!;
     private ActionBar _bar = null!;
-    private BuildMode _mode;
+    private DiceView _dice = null!;
+    private ActionPanel _actions = null!;
+    private TradeProposal _proposal = null!;
+    private TradePopups _popups = null!;
     private Control _discardPanel = null!;
-    private bool _shownOnce;
-    private TradeWindow _trades = null!;
-    private readonly Queue<GameAction> _queued = new();
-    private bool _tradeOpen;
     private readonly CardPicker _discard = new();
-    private CardPickerView _discardView = null!;
+    private readonly Queue<GameAction> _queued = new();
+
     private PlayerView? _view;
+    private BuildMode _mode;
+    private bool _tradeOpen, _shownOnce;
     private int _loggedEvents;
+    private (int Player, int Turn) _turnKey = (-1, -1);
+    private DateTime _turnStarted = DateTime.UtcNow;
 
     /// <summary>When a board click matches several legal actions (e.g. two players to rob), they're offered as buttons.</summary>
     private List<GameAction>? _choices;
@@ -101,68 +107,48 @@ public partial class GameScreen : Control
         _board.Clicked += OnBoardClicked;
         AddChild(_board);
 
-        _bank = new BankView { Position = BankRect.Position, Size = BankRect.Size };
-        AddChild(_bank);
+        AddTopLeftButtons();
 
-        // Opponents in the order they play after you, then you at the bottom.
-        var order = HudModel.Opponents(_setup.HumanSeat).Append(_setup.HumanSeat).ToArray();
-        float gap = (PlayersRect.Size.Y - order.Length * PlayerCardHeight) / (order.Length - 1);
-        for (int i = 0; i < order.Length; i++)
-        {
-            var card = new PlayerCard
-            {
-                Position = PlayersRect.Position + new Vector2(0, i * (PlayerCardHeight + gap)),
-                Size = new Vector2(PlayersRect.Size.X, PlayerCardHeight),
-            };
-            _playerCards[order[i]] = card;
-            AddChild(card);
-        }
-
-        _hand = new HandBar(this, HandRect);
-        _hand.ResourceClicked += OnHandResourceClicked;
-
-        // What the game wants from you, in a banner over the bottom of the board.
-        var banner = new CenterContainer
-        {
-            Position = new Vector2(BoardRect.Position.X, BoardRect.End.Y + 6), Size = new Vector2(BoardRect.Size.X, 44), MouseFilter = MouseFilterEnum.Ignore,
-        };
-        var pill = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
-        pill.AddThemeStyleboxOverride("panel", Ui.PanelStyle(new Color(0.1f, 0.12f, 0.16f, 0.85f), radius: 18, margin: 16));
-        _prompt = Ui.Label("", 17, Colors.White);
-        pill.AddChild(_prompt);
-        banner.AddChild(pill);
-        AddChild(banner);
-
-        _trades = new TradeWindow(this, TradesRect, _text, _setup.HumanSeat, _setup.Colors, Submit, SubmitAll, WhyNot, () => _human.Skip(),
-            () => { _tradeOpen = false; Refresh(); });
-
-        AddChild(Ui.Panel(null, LogRect, out var log));
-        var header = new HBoxContainer();
-        var title = Ui.Label("Game log", 16, Ui.MutedText);
-        title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        header.AddChild(title);
-        var save = new Button { Text = "Save" };
-        save.Pressed += SaveGame;
-        var menu = new Button { Text = "Menu" };
-        menu.Pressed += Leave;
-        header.AddChild(save);
-        header.AddChild(menu);
-        log.AddChild(header);
-        _log = new LogPanel(log, new Vector2(390, 390));
-        _log.AddMuted(resume is null
+        // Right column: log, bank, the opponents in the order they play after you, then you.
+        _log = new LogPanel(this, LogRect, _setup.Colors, _setup.HumanSeat, _text);
+        _log.AddNote(resume is null
             ? $"Game seed {_setup.Seed}. You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
         if (loadError is not null)
-            _log.Add($"[color=#b00000]That save couldn't be loaded ({loadError}). Started a new game instead.[/color]");
+            _log.AddNote($"That save couldn't be loaded ({loadError}). Started a new game instead.", Ui.Bad);
+        _bank = new BankView { Position = BankRect.Position, Size = BankRect.Size };
+        AddChild(_bank);
+        int row = 0;
+        foreach (int seat in HudModel.Opponents(_setup.HumanSeat))
+        {
+            _playerCards[seat] = new PlayerCard { Position = new Vector2(LogRect.Position.X, RowTop + row++ * (RowHeight + RowGap)), Size = new Vector2(LogRect.Size.X, RowHeight) };
+            AddChild(_playerCards[seat]);
+        }
+        _playerCards[_setup.HumanSeat] = new PlayerCard { Position = YouRect.Position, Size = YouRect.Size, Big = true };
+        AddChild(_playerCards[_setup.HumanSeat]);
 
-        _bar = new ActionBar(this, ActionsRect);
+        // Bottom: hand, buttons, status; dice beside whoever rolled.
+        _hand = new HandBar(this, HandRect);
+        _hand.ResourceClicked += OnHandResourceClicked;
+        _bar = new ActionBar(this, ButtonsAt, StatusRect, TimerRect, _setup.HumanColor);
         _bar.Clicked += OnBarClicked;
+        _dice = new DiceView { Visible = false };
+        _dice.Clicked += () => OnBarClicked(BarItem.Roll);
+        AddChild(_dice);
+
+        // Trading.
+        _proposal = new TradeProposal(this, ProposalRect, BankButtonRect, PeopleButtonRect, _setup.HumanColor, _setup.HumanSeat, _text, Submit, SubmitAll, WhyNot);
+        _proposal.Sent += () => { _tradeOpen = false; Refresh(); };
+        _popups = new TradePopups(this, PopupsTopRight, _setup.Colors, _setup.HumanSeat, _text, Submit, WhyNot,
+            edit: (slot, o) => { _proposal.StartEdit(slot, o); _tradeOpen = true; Refresh(); },
+            counter: (slot, o) => { _proposal.StartCounter(slot, o); Refresh(); });
+
+        // Choices without a proper control yet (dev card plays, who to rob) and the discard picker.
         _actions = new ActionPanel(this, ChoicesRect);
         _discardPanel = Ui.Panel("Discard: click cards in your hand, or use − / +", DiscardRect, out var discard);
         _discardPanel.Visible = false;
         AddChild(_discardPanel);
-        _discardView = new CardPickerView(_discard);
-        discard.AddChild(_discardView);
+        discard.AddChild(new CardPickerView(_discard));
         // Only the buttons depend on the discard pick ("Discard 3 of 4"); a full Refresh here would loop (it resets limits).
         _discard.Changed += () =>
         {
@@ -173,6 +159,25 @@ public partial class GameScreen : Control
         Refresh();
         CallDeferred(MethodName.StartGame);
         DevScreenshot();
+    }
+
+    /// <summary>Settings (Save / Main menu) and fullscreen, top left.</summary>
+    private void AddTopLeftButtons()
+    {
+        var menu = new PopupMenu();
+        menu.AddItem("Save game", 0);
+        menu.AddItem("Main menu", 1);
+        menu.IdPressed += id => { if (id == 0) SaveGame(); else Leave(); };
+        AddChild(menu);
+        var gear = new ActionTile { Position = new Vector2(8, 8), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => Gear(c, at, s) };
+        gear.Set(true, "Settings");
+        gear.Clicked += () => menu.Popup(new Rect2I(8, 56, 160, 0));
+        AddChild(gear);
+        var full = new ActionTile { Position = new Vector2(8, 58), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => FullscreenIcon(c, at, s) };
+        full.Set(true, "Fullscreen");
+        full.Clicked += () => DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
+            ? DisplayServer.WindowMode.Windowed : DisplayServer.WindowMode.Fullscreen);
+        AddChild(full);
     }
 
     /// <summary>A new game from the setup, or a saved game continued with dice seeded from the save point (no rerolling by reloading).</summary>
@@ -224,7 +229,7 @@ public partial class GameScreen : Control
         }
         catch (Exception ex)
         {
-            _log.Add($"[color=#b00000]Error: {ex.Message}[/color]");
+            _log.AddNote($"Error: {ex.Message}", Ui.Bad);
             GD.PushError(ex.ToString());
         }
         Refresh();
@@ -240,13 +245,16 @@ public partial class GameScreen : Control
 
     public override void _Process(double delta)
     {
-        // Keep the countdown on an optional answer ticking.
         if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
         {
-            _prompt.Text = CountdownText(deadline);
-            _trades.Tick(deadline, _human.ResponseWindow);
+            _popups.Tick(deadline, _human.ResponseWindow);
+            _bar.SetTimer(Clock(Math.Max(0, (deadline - DateTime.UtcNow).TotalSeconds)));
         }
+        else
+            _bar.SetTimer(Clock((DateTime.UtcNow - _turnStarted).TotalSeconds));
     }
+
+    private static string Clock(double seconds) => $"{(int)seconds / 60:00}:{(int)seconds % 60:00}";
 
     public override void _Input(InputEvent @event)
     {
@@ -271,7 +279,7 @@ public partial class GameScreen : Control
         else if (_mode != BuildMode.None)
             _mode = BuildMode.None;
         else
-            _tradeOpen = false;
+            CloseProposal();
         Refresh();
     }
 
@@ -286,7 +294,7 @@ public partial class GameScreen : Control
     private void SaveGame()
     {
         string path = GameSession.Store.Save(_runner.ToRecord(_setup.Seed), DateTime.Now);
-        _log.AddMuted($"Saved as {System.IO.Path.GetFileNameWithoutExtension(path)}.");
+        _log.AddNote($"Saved as {System.IO.Path.GetFileNameWithoutExtension(path)}.");
     }
 
     private void OnPromptChanged()
@@ -299,15 +307,25 @@ public partial class GameScreen : Control
             CallDeferred(MethodName.SubmitQueued);
     }
 
+    private void CloseProposal()
+    {
+        _tradeOpen = false;
+        _proposal.Reset();
+    }
+
     // ---- Drawing everything from your view ----
 
     private void Refresh()
     {
         if (!IsInsideTree())
             return;
-        var state = _runner.State;
-        var view = PlayerView.From(state, _setup.HumanSeat, _runner.Log);
+        var view = PlayerView.From(_runner.State, _setup.HumanSeat, _runner.Log);
         _view = view;
+        if ((view.CurrentPlayer, view.TurnNumber) != _turnKey)
+        {
+            _turnKey = (view.CurrentPlayer, view.TurnNumber);
+            _turnStarted = DateTime.UtcNow;
+        }
         _board.Show(view, _setup.Colors);
         _bank.Show(view);
         for (int seat = 0; seat < GameConstants.PlayerCount; seat++)
@@ -319,72 +337,81 @@ public partial class GameScreen : Control
         for (; _loggedEvents < seen.Count; _loggedEvents++)
         {
             newRoll |= seen[_loggedEvents] is DiceRolled;
-            if (seen[_loggedEvents] is not TurnEnded)
-                _log.Add(_text.Describe(seen[_loggedEvents]));
+            _log.Add(seen[_loggedEvents]);
         }
-        var roll = ActionBarModel.Roll(view);
-        _bar.Dice.Show(roll, roll is null ? "No rolls yet" : $"{_text.Seat(roll.Seat)} rolled {roll.Total}",
-            roll is null ? Ui.PanelBorder : Ui.SeatColor(_setup.Colors[roll.Seat]), animate: newRoll && _shownOnce);
-        _shownOnce = true;
 
         var prompt = _human.Prompt;
         var legal = prompt is { IsOptional: false } ? prompt.Legal : null;
         if (legal is null || view.Phase != Phase.Main)
             _mode = BuildMode.None;
-        _bar.Update(view, legal, _mode, Ui.SeatColor(_setup.HumanColor));
+        bool answering = prompt is { IsOptional: true };
+        if (view.CurrentPlayer != _setup.HumanSeat || view.Phase != Phase.Main) // not a passing moment with no prompt (right after a submit)
+            _tradeOpen = false;
+        _proposal.Update(view, prompt);
+        _proposal.Visible = _tradeOpen || (_proposal.IsCounter && answering);
+        _popups.Update(view, prompt);
+        _bar.Update(view, legal, _mode, _proposal.Visible);
+        ShowDice(view, legal, newRoll && _shownOnce);
+        _shownOnce = true;
         _board.SetTargets(legal is null ? Array.Empty<BoardHit>()
             : ActionBarModel.BoardActions(_mode, view, legal).Select(TargetOf).Distinct());
-        _trades.Update(view, prompt);
-        // The trade window: open on request during your turn, and on its own when a bot's offer waits for your answer.
-        if (!CanTrade(view, prompt))
-            _tradeOpen = false;
-        _trades.Visible = _tradeOpen || prompt is { IsOptional: true };
 
-        bool discarding = prompt is { IsOptional: false } && view.Phase == Phase.Discard;
+        bool discarding = legal is not null && view.Phase == Phase.Discard;
         if (discarding)
             _discard.SetLimits(view.Hand, view.DiscardOwed[_setup.HumanSeat]);
         _discardPanel.Visible = discarding;
-        _prompt.Text = PromptText(view, prompt);
-        _prompt.GetParent<Control>().Visible = _prompt.Text.Length > 0;
+        var (status, help) = StatusText(view, prompt);
+        _bar.SetStatus(status, help);
         _actions.SetButtons(Buttons(view, prompt));
+    }
+
+    /// <summary>The dice sit beside the row of the player who rolled (or yours, glowing, when it's your roll).</summary>
+    private void ShowDice(PlayerView v, IReadOnlyList<GameAction>? legal, bool animate)
+    {
+        var rollState = ActionBarModel.State(BarItem.Roll, v, legal);
+        var roll = ActionBarModel.Roll(v);
+        int seat = rollState.Enabled ? _setup.HumanSeat : roll?.Seat ?? -1;
+        _dice.Visible = seat >= 0;
+        if (seat < 0)
+            return;
+        var row = _playerCards[seat];
+        float y = row.Position.Y + row.Size.Y / 2 - _dice.Size.Y / 2;
+        _dice.Position = new Vector2(LogRect.Position.X - _dice.Size.X - 4, Math.Min(y, StatusRect.Position.Y - _dice.Size.Y - 4));
+        _dice.Set(rollState.Enabled, rollState.Tooltip);
+        _dice.Show(rollState.Enabled ? null : roll, roll is null ? "" : $"{_text.Seat(roll.Seat)} rolled {roll.Total}", animate);
     }
 
     private bool CanTrade(PlayerView v, HumanPrompt? prompt) =>
         prompt is { IsOptional: false } && v.Phase == Phase.Main && v.CurrentPlayer == _setup.HumanSeat;
 
-    private string PromptText(PlayerView v, HumanPrompt? prompt)
+    /// <summary>The short status ("Your Turn") and a longer hint for its tooltip.</summary>
+    private (string, string) StatusText(PlayerView v, HumanPrompt? prompt)
     {
         if (_runner.IsOver)
-            return v.Winner == _setup.HumanSeat ? "You won!" : v.Winner >= 0 ? $"{_text.Seat(v.Winner)} won the game." : "The game ended in a draw.";
+            return (v.Winner == _setup.HumanSeat ? "You won!" : v.Winner >= 0 ? $"{_text.Seat(v.Winner)} won" : "Draw", "The game is over.");
         if (prompt is null)
-            return v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)} is playing…" : "";
+            return (v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)}'s turn" : "", "Waiting for the bots.");
         if (prompt.IsOptional)
-            return CountdownText(prompt.Deadline ?? DateTime.UtcNow);
+            return ("Answer Trade", $"{_text.Seat(v.CurrentPlayer)} wants to trade: accept, decline or counter in the offer card (top right).");
         if (_choices is not null)
-            return "Choose one of the options on the right.";
+            return ("Choose", "Pick one of the options on the left.");
         return v.Phase switch
         {
-            Phase.SetupSettlement => "Place a settlement: click a highlighted corner.",
-            Phase.SetupRoad => "Place a road next to it: click a highlighted edge.",
-            Phase.PreRoll => "Your turn: click the dice to roll (or play a development card first).",
+            Phase.SetupSettlement => ("Place Settlement", "Click a highlighted corner."),
+            Phase.SetupRoad => ("Place Road", "Click a highlighted edge next to your new settlement."),
+            Phase.PreRoll => ("Roll the Dice", "Click the dice (or press Space). You may play a development card first."),
             Phase.Main => _mode switch
             {
-                BuildMode.Road => "Click a highlighted edge to build a road (Esc to cancel).",
-                BuildMode.Settlement => "Click a highlighted corner to build a settlement (Esc to cancel).",
-                BuildMode.City => "Click one of your settlements to make it a city (Esc to cancel).",
-                _ => "Build, trade, play a card, or end your turn.",
+                BuildMode.Road => ("Place Road", "Click a highlighted edge (Esc to cancel)."),
+                BuildMode.Settlement => ("Place Settlement", "Click a highlighted corner (Esc to cancel)."),
+                BuildMode.City => ("Place City", "Click one of your settlements (Esc to cancel)."),
+                _ => ("Your Turn", "Build, trade, play a card, or end your turn (Space)."),
             },
-            Phase.Discard => $"A 7 was rolled: discard {v.DiscardOwed[_setup.HumanSeat]} cards (click cards in your hand).",
-            Phase.MoveRobber => "Move the robber: click a highlighted hex.",
-            Phase.RoadBuilding => "Road Building: place a free road.",
-            _ => "",
+            Phase.Discard => ($"Discard {v.DiscardOwed[_setup.HumanSeat]} Cards", "A 7 was rolled and you hold more than 7 cards: click cards in your hand to pick them."),
+            Phase.MoveRobber => ("Move the Robber", "Click a highlighted hex."),
+            Phase.RoadBuilding => ("Place Free Road", "Road Building: click a highlighted edge."),
+            _ => ("", ""),
         };
-    }
-
-    private string CountdownText(DateTime deadline)
-    {
-        int seconds = Math.Max(0, (int)Math.Ceiling((deadline - DateTime.UtcNow).TotalSeconds));
-        return $"{_text.Seat(_runner.State.CurrentPlayer)} wants to trade: answer in the trade window ({seconds} s).";
     }
 
     // ---- Your moves ----
@@ -395,7 +422,7 @@ public partial class GameScreen : Control
     private IEnumerable<(string, string?, Action)> Buttons(PlayerView v, HumanPrompt? prompt)
     {
         if (prompt is null || prompt.IsOptional || _runner.IsOver)
-            yield break; // optional answers live in the trade window
+            yield break; // optional answers live in the offer cards
 
         if (_choices is not null)
         {
@@ -413,7 +440,7 @@ public partial class GameScreen : Control
             yield break;
         }
 
-        // Moves without a proper control yet (dev card plays); the action bar and trade window have the rest.
+        // Moves without a proper control yet (dev card plays); the buttons and trade panel have the rest.
         foreach (var action in prompt.Legal)
             if (TargetOf(action).Kind == HitKind.None && !IsPlayerTrade(action.Type)
                 && action.Type is not (ActionType.RollDice or ActionType.EndTurn or ActionType.BuyDevCard or ActionType.BankTrade))
@@ -427,14 +454,17 @@ public partial class GameScreen : Control
         switch (item)
         {
             case BarItem.Trade:
-                _tradeOpen = !_tradeOpen;
+                if (_tradeOpen)
+                    CloseProposal();
+                else
+                    _tradeOpen = true;
                 _mode = BuildMode.None;
                 Refresh();
                 break;
             case BarItem.Road or BarItem.Settlement or BarItem.City:
                 var mode = ActionBarModel.ModeOf(item);
                 _mode = _mode == mode ? BuildMode.None : mode;
-                _tradeOpen = false;
+                CloseProposal();
                 Refresh();
                 break;
             default:
@@ -446,30 +476,27 @@ public partial class GameScreen : Control
         }
     }
 
-    /// <summary>A resource card in your hand: picks it for a discard, adds it to a counter you're building, or opens a trade offering it.</summary>
+    /// <summary>A resource card in your hand: picks it for a discard, or gives it in the trade you're proposing (opening the panel).</summary>
     private void OnHandResourceClicked(int resource)
     {
         if (_view is not { } v)
             return;
         var prompt = _human.Prompt;
         if (prompt is { IsOptional: false } && v.Phase == Phase.Discard)
-        {
             _discard.Add(resource);
-            return;
-        }
-        if (CanTrade(v, prompt) || prompt is { IsOptional: true })
+        else if (CanTrade(v, prompt))
         {
-            _tradeOpen = CanTrade(v, prompt);
-            _trades.OfferWith(resource);
+            _tradeOpen = true;
+            _proposal.AddGive(resource);
             Refresh();
         }
+        else if (prompt is { IsOptional: true } && _proposal.IsCounter)
+            _proposal.AddGive(resource);
     }
 
     private void OnBoardClicked(BoardHit hit)
     {
-        if (_human.Prompt is not { IsOptional: false } prompt)
-            return;
-        if (_view is null)
+        if (_human.Prompt is not { IsOptional: false } prompt || _view is null)
             return;
         var matches = ActionBarModel.BoardActions(_mode, _view, prompt.Legal).Where(a => TargetOf(a) == hit).ToList();
         if (matches.Count == 1)
@@ -481,8 +508,7 @@ public partial class GameScreen : Control
         }
     }
 
-    /// <summary>Checks the move with the engine first (the runner would reject an illegal one and stop the game).</summary>
-    /// <summary>The engine's reason a move is illegal right now, or null if it's fine (the trade window checks as you build).</summary>
+    /// <summary>The engine's reason a move is illegal right now, or null if it's fine (the trade panel checks as you build).</summary>
     private string? WhyNot(GameAction action) => Rules.IsLegal(_runner.State, action, out string reason) ? null : reason;
 
     /// <summary>Several moves in a row (a bank trade of several lots): the first now, the rest as the game asks again.</summary>
@@ -501,11 +527,12 @@ public partial class GameScreen : Control
             _queued.Clear();
     }
 
+    /// <summary>Checks the move with the engine first (the runner would reject an illegal one and stop the game).</summary>
     private bool Submit(GameAction action)
     {
         if (!Rules.IsLegal(_runner.State, action, out string reason))
         {
-            _prompt.Text = $"Can't do that: {reason}";
+            _bar.SetStatus("Can't do that", reason, error: true);
             return false;
         }
         _choices = null;
@@ -519,6 +546,33 @@ public partial class GameScreen : Control
         ActionType.MoveRobber => BoardHit.Hex(a.Target),
         _ => BoardHit.None,
     };
+
+    // ---- Icons for the top-left buttons ----
+
+    private static void Gear(CanvasItem c, Vector2 at, float s)
+    {
+        var ink = Ui.ButtonInk;
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * Mathf.Tau / 8;
+            var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            c.DrawLine(at + dir * s * 0.28f, at + dir * s * 0.46f, ink, s * 0.16f);
+        }
+        c.DrawCircle(at, s * 0.33f, ink);
+        c.DrawCircle(at, s * 0.14f, Ui.ButtonBlue);
+    }
+
+    private static void FullscreenIcon(CanvasItem c, Vector2 at, float s)
+    {
+        var ink = Ui.ButtonInk;
+        float r = s * 0.4f, l = s * 0.18f;
+        foreach (var (x, y) in new[] { (-1, -1), (1, -1), (-1, 1), (1, 1) })
+        {
+            var corner = at + new Vector2(x * r, y * r);
+            c.DrawLine(corner, corner - new Vector2(x * l, 0), ink, 3);
+            c.DrawLine(corner, corner - new Vector2(0, y * l), ink, 3);
+        }
+    }
 
     // ---- Developer screenshots ----
 

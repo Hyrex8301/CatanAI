@@ -80,15 +80,18 @@ public partial class BoardView : Node2D
         var board = v.Board;
         float size = (float)_geometry.Size;
 
+        for (int pass = 0; pass < 2; pass++)
+            for (int h = 0; h < Topology.HexCount; h++)
+                Skin.Coast(this, Hex(h), Corners(h), pass);
         for (int h = 0; h < Topology.HexCount; h++)
-            Skin.Hex(this, Corners(h), board.TerrainAt(h));
+            Skin.Hex(this, Hex(h), Corners(h), board.TerrainAt(h));
 
         for (int spot = 0; spot < Topology.HarborCount; spot++)
         {
             Vector2 a = Vertex(Topology.HarborVertices[spot, 0]), b = Vertex(Topology.HarborVertices[spot, 1]);
             var mid = (a + b) / 2;
             var outward = (mid - Hex(Topology.HarborHex[spot])).Normalized();
-            Skin.Harbor(this, a, b, mid + outward * size * 0.55f, size, board.HarborTypeAt(spot));
+            Skin.Harbor(this, a, b, mid + outward * size * 0.72f, size, board.HarborTypeAt(spot));
         }
 
         for (int h = 0; h < Topology.HexCount; h++)
@@ -110,7 +113,7 @@ public partial class BoardView : Node2D
                 Skin.Settlement(this, Vertex(vertex), size, SeatColor(owner));
         }
 
-        Skin.Robber(this, Hex(v.RobberHex) + new Vector2(size * 0.45f, 0), size);
+        Skin.Robber(this, Hex(v.RobberHex) + new Vector2(-size * 0.5f, 0), size);
 
         foreach (var target in _targets)
             Highlight(target, hover: false, size);
