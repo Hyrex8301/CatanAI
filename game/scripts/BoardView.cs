@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Catan.Core;
 using Catan.UI;
 using Godot;
@@ -23,6 +24,52 @@ public partial class BoardView : Node2D
 
     /// <summary>A left click on a vertex, edge or hex.</summary>
     public event Action<BoardHit>? Clicked;
+
+    // Animations: a flashing number, pieces popping in, the robber sliding.
+    private const double FlashSeconds = 1.2, PopSeconds = 0.35, SlideSeconds = 0.5;
+    private int _flashNumber;
+    private double _flashStart = -10, _slideStart = -10;
+    private readonly Dictionary<BoardHit, double> _pops = new();
+    private Vector2 _robberDrawn, _slideFrom;
+
+    /// <summary>The hexes with this number light up.</summary>
+    public void Flash(int number)
+    {
+        _flashNumber = number;
+        _flashStart = Time.GetTicksMsec() / 1000.0;
+    }
+
+    /// <summary>The piece at this spot pops in (grows from large to its size).</summary>
+    public void Pop(PieceType piece, int target) =>
+        _pops[piece == PieceType.Road ? BoardHit.Edge(target) : BoardHit.Vertex(target)] = Time.GetTicksMsec() / 1000.0;
+
+    /// <summary>The robber slides from where it is drawn now to its hex.</summary>
+    public void SlideRobber()
+    {
+        _slideFrom = _robberDrawn;
+        _slideStart = Time.GetTicksMsec() / 1000.0;
+    }
+
+    /// <summary>A hex's center on screen (for cards flying from it).</summary>
+    public Vector2 HexCenter(int hex) => Hex(hex) + Position;
+
+    public override void _Process(double delta)
+    {
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (now - _flashStart < FlashSeconds || now - _slideStart < SlideSeconds || _pops.Count > 0)
+            QueueRedraw();
+        foreach (var (hit, start) in _pops.ToArray()) // a copy: finished pops are removed
+            if (now - start > PopSeconds)
+                _pops.Remove(hit);
+    }
+
+    private float PopScale(BoardHit hit, double now)
+    {
+        if (!_pops.TryGetValue(hit, out double start))
+            return 1;
+        float t = Mathf.Clamp((float)((now - start) / PopSeconds), 0, 1);
+        return 1 + 0.8f * (1 - t) * (1 - t); // 1.8× shrinking to 1×
+    }
 
     public void Setup(Rect2 area) => _geometry = new BoardGeometry(area.Position.X, area.Position.Y, area.Size.X, area.Size.Y);
 
@@ -94,26 +141,55 @@ public partial class BoardView : Node2D
             Skin.Harbor(this, a, b, mid + outward * size * 0.72f, size, board.HarborTypeAt(spot));
         }
 
+        // A roll lights up the hexes with its number (two soft pulses), under their number tiles.
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (_flashNumber > 0 && now - _flashStart < FlashSeconds)
+        {
+            float t = (float)((now - _flashStart) / FlashSeconds);
+            float glow = 0.55f * Mathf.Abs(Mathf.Sin(t * Mathf.Pi * 2)) * (1 - t * 0.5f);
+            for (int h = 0; h < Topology.HexCount; h++)
+                if (board.NumberAt(h) == _flashNumber)
+                    DrawColoredPolygon(Corners(h), new Color(1, 1, 0.8f, h == v.RobberHex ? glow * 0.3f : glow));
+        }
+
         for (int h = 0; h < Topology.HexCount; h++)
             if (board.NumberAt(h) != 0)
                 Skin.Token(this, Hex(h), size, board.NumberAt(h), board.PipsAt(h));
 
         for (int e = 0; e < Topology.EdgeCount; e++)
-            if (v.EdgeOwner[e] >= 0)
-                Skin.Road(this, Vertex(Topology.EdgeVertices[e, 0]), Vertex(Topology.EdgeVertices[e, 1]), size, SeatColor(v.EdgeOwner[e]));
+        {
+            if (v.EdgeOwner[e] < 0)
+                continue;
+            Vector2 a = Vertex(Topology.EdgeVertices[e, 0]), b = Vertex(Topology.EdgeVertices[e, 1]), mid = (a + b) / 2;
+            float scale = PopScale(BoardHit.Edge(e), now);
+            DrawSetTransform(mid, 0, new Vector2(scale, scale));
+            Skin.Road(this, a - mid, b - mid, size, SeatColor(v.EdgeOwner[e]));
+        }
 
         for (int vertex = 0; vertex < Topology.VertexCount; vertex++)
         {
             int owner = v.VertexOwner[vertex];
             if (owner < 0)
                 continue;
+            float scale = PopScale(BoardHit.Vertex(vertex), now);
+            DrawSetTransform(Vertex(vertex), 0, new Vector2(scale, scale));
             if (v.VertexLevel[vertex] == 2)
-                Skin.City(this, Vertex(vertex), size, SeatColor(owner));
+                Skin.City(this, Vector2.Zero, size, SeatColor(owner));
             else
-                Skin.Settlement(this, Vertex(vertex), size, SeatColor(owner));
+                Skin.Settlement(this, Vector2.Zero, size, SeatColor(owner));
         }
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
 
-        Skin.Robber(this, Hex(v.RobberHex) + new Vector2(-size * 0.5f, 0), size);
+        // The robber slides from where it was drawn last.
+        var robberAt = Hex(v.RobberHex) + new Vector2(-size * 0.5f, 0);
+        if (now - _slideStart < SlideSeconds)
+        {
+            float t = (float)((now - _slideStart) / SlideSeconds);
+            t = 1 - (1 - t) * (1 - t); // ease out
+            robberAt = _slideFrom.Lerp(robberAt, t) - new Vector2(0, Mathf.Sin(t * Mathf.Pi) * size * 0.4f);
+        }
+        _robberDrawn = robberAt;
+        Skin.Robber(this, robberAt, size);
 
         foreach (var target in _targets)
             Highlight(target, hover: false, size);

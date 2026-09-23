@@ -54,6 +54,8 @@ public partial class GameScreen : Control
     private TradeProposal _proposal = null!;
     private TradePopups _popups = null!;
     private DiscardPanel _discardUi = null!;
+    private Animator _animator = null!;
+    private AnimationCues _cues = null!;
     private readonly CardPicker _discard = new();
     private readonly Queue<GameAction> _queued = new();
 
@@ -155,6 +157,12 @@ public partial class GameScreen : Control
         _devPopup.Closed += () => { _devPopup.Close(); Refresh(); };
         _hand.DevClicked += type => { CloseProposal(); _devPopup.Open(type); Refresh(); };
 
+        // Animations play over everything else.
+        _cues = new AnimationCues(_text, _setup.HumanSeat);
+        _animator = new Animator();
+        AddChild(_animator);
+        _animator.Setup(_board, Where, new Vector2(BoardRect.GetCenter().X, 14));
+
         Refresh();
         CallDeferred(MethodName.StartGame);
         DevScreenshot();
@@ -199,6 +207,11 @@ public partial class GameScreen : Control
 
     private bool Autoplaying => _runner is not null && _runner.Actions.Count < _autoplayActions;
 
+    /// <summary>Developer screenshots: CATAN_ANIMATE=1 keeps animations and bot pauses on while autoplaying.</summary>
+    private static readonly bool ForceAnimate = System.Environment.GetEnvironmentVariable("CATAN_ANIMATE") == "1";
+
+    private bool Fast => Autoplaying && !ForceAnimate;
+
     /// <summary>The trained weights shipped with the game (game/bots/best.json), or the hand-set defaults if there are none yet.</summary>
     private static BotWeights BotWeightsFile()
     {
@@ -218,8 +231,13 @@ public partial class GameScreen : Control
                 bool humanActing = Rules.ActingSeat(_runner.State) == _setup.HumanSeat;
                 int before = _runner.Actions.Count;
                 await _runner.StepAsync(_quit.Token);
-                if (!humanActing && _runner.Actions.Count > before && !_runner.IsOver && _options.BotDelaySeconds > 0 && !Autoplaying)
+                if (!humanActing && _runner.Actions.Count > before && !_runner.IsOver && _options.BotDelaySeconds > 0 && !Fast)
+                {
                     await ToSignal(GetTree().CreateTimer(_options.BotDelaySeconds), SceneTreeTimer.SignalName.Timeout);
+                    // Let flying cards land before the next bot move.
+                    while (_animator.Busy && !_quit.IsCancellationRequested)
+                        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -338,10 +356,13 @@ public partial class GameScreen : Control
 
         var seen = _runner.Log.For(_setup.HumanSeat);
         bool newRoll = false;
+        bool animate = _shownOnce && !Fast;
+        var cues = new List<Cue>();
         for (; _loggedEvents < seen.Count; _loggedEvents++)
         {
             newRoll |= seen[_loggedEvents] is DiceRolled;
             _log.Add(seen[_loggedEvents]);
+            cues.AddRange(_cues.For(seen[_loggedEvents], view)); // always, so the cue builder keeps track of rolls and settlements
         }
 
         var prompt = _human.Prompt;
@@ -356,6 +377,8 @@ public partial class GameScreen : Control
         _popups.Update(view, prompt);
         _bar.Update(view, legal, _mode, _proposal.Visible);
         ShowDice(view, legal, newRoll && _shownOnce);
+        if (animate)
+            _animator.Play(cues);
         _shownOnce = true;
         _board.SetTargets(legal is null ? Array.Empty<BoardHit>()
             : ActionBarModel.BoardActions(_mode, view, legal).Select(TargetOf).Distinct());
@@ -383,6 +406,15 @@ public partial class GameScreen : Control
         _dice.Show(rollState.Enabled ? null : roll, roll is null ? "" : $"{_text.Seat(roll.Seat)} rolled {roll.Total}", animate);
     }
 
+    /// <summary>Screen points for flying cards: a hex's center, a bot's avatar, your hand, or the bank row.</summary>
+    private Vector2 Where(Spot spot) => spot.Kind switch
+    {
+        SpotKind.Hex => _board.HexCenter(spot.Id),
+        SpotKind.Seat when spot.Id == _setup.HumanSeat => HandRect.Position + new Vector2(150, HandRect.Size.Y / 2),
+        SpotKind.Seat => _playerCards[spot.Id].Position + new Vector2(60, _playerCards[spot.Id].Size.Y / 2 + 6),
+        _ => BankRect.Position + new Vector2(BankRect.Size.X / 2, BankRect.Size.Y / 2),
+    };
+
     private bool CanTrade(PlayerView v, HumanPrompt? prompt) =>
         prompt is { IsOptional: false } && v.Phase == Phase.Main && v.CurrentPlayer == _setup.HumanSeat;
 
@@ -392,7 +424,7 @@ public partial class GameScreen : Control
         if (_runner.IsOver)
             return (v.Winner == _setup.HumanSeat ? "You won!" : v.Winner >= 0 ? $"{_text.Seat(v.Winner)} won" : "Draw", "The game is over.");
         if (prompt is null)
-            return (v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)}'s turn" : "", "Waiting for the bots.");
+            return (v.ActingSeat == _setup.HumanSeat ? "Your Turn" : v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)}'s Turn" : "", "Waiting for the bots.");
         if (prompt.IsOptional)
             return ("Answer Trade", $"{_text.Seat(v.CurrentPlayer)} wants to trade: accept, decline or counter in the offer card (top right).");
         if (_choices is not null)
@@ -557,9 +589,17 @@ public partial class GameScreen : Control
         if (string.IsNullOrEmpty(path))
             return;
         double after = double.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_AFTER"), out double s) ? s : 3;
+        // CATAN_SHOT_COUNT=N (with "{n}" in the path) takes N shots CATAN_SHOT_EVERY seconds apart, to catch animations.
+        int count = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_COUNT"), out int c) ? c : 1;
+        double every = double.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SHOT_EVERY"), out double e) ? e : 0.2;
         await ToSignal(GetTree().CreateTimer(after), SceneTreeTimer.SignalName.Timeout);
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        GetViewport().GetTexture().GetImage().SavePng(path);
+        for (int n = 0; n < count; n++)
+        {
+            if (n > 0)
+                await ToSignal(GetTree().CreateTimer(every), SceneTreeTimer.SignalName.Timeout);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            GetViewport().GetTexture().GetImage().SavePng(path.Replace("{n}", n.ToString("00")));
+        }
         GetTree().Quit();
     }
 
