@@ -42,6 +42,9 @@ internal static class StandardPieces
         HarborType.Generic, HarborType.Generic, HarborType.Generic, HarborType.Generic,
         HarborType.Brick, HarborType.Lumber, HarborType.Wool, HarborType.Grain, HarborType.Ore,
     };
+
+    /// <summary>Indexed by DevCardType: Knight 14, VP 5, RoadBuilding 2, YearOfPlenty 2, Monopoly 2.</summary>
+    public static readonly int[] DevDeck = { 14, 5, 2, 2, 2 };
 }
 
 /// <summary>

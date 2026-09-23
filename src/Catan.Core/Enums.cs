@@ -45,6 +45,8 @@ public enum ActionType : byte
 
 public static class GameConstants
 {
+    public const int PlayerCount = 4;
     public const int ResourceCount = 5;
     public const int DevCardTypeCount = 5;
+    public const int DevDeckSize = 25;
 }
