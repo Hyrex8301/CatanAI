@@ -7,6 +7,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 - **All commits are authored by the repo owner** (Hyrex8301). Use the configured git identity as-is. Never change `user.name` / `user.email` or pass `--author`.
 - **No AI attribution anywhere.** No `Co-Authored-By: Claude` (or any AI) trailers, no "Generated with Claude Code" lines, no AI mentions in commit messages, PR titles/descriptions, code comments, or docs.
 - **Never commit secrets:** no API keys, tokens, passwords, `.env` files, credentials, or personal data. Check `git status` / `git diff --cached` before committing, and stop and ask if anything looks sensitive.
+- Never commit `.claude/` (local tool settings; gitignored). Review `git status --short` *before* committing, not after.
 - Commit messages are short and imperative, describing the change (e.g. `M1 step 2: topology ids and adjacency tables`).
 - Don't force-push, rewrite history, or delete branches without asking.
 
