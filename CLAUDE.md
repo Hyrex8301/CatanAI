@@ -14,7 +14,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–11 done**, checkpoints A and B passed. **At checkpoint C** (the trickiest rules), waiting for the user's review before step 12 (BankTrade and the player-trade protocol).
+- **M1 (rules engine): steps 1–12 done**, checkpoints A, B and C passed. Next is step 13: events and redaction (`RedactFor`), `PlayerView`, `IPlayerAgent`, `GameRunner`, and the PlayerView leak test.
+- Trade offers, like discards, are never in the legal list; `Rules.RandomTradeOffer` builds a random valid one. Replies go in turn order after the current player; after all replies the current player must Confirm (with an accepter) or Cancel, even if everyone declined.
 - Win check: `TryWin` runs after every `Apply` (current seat only, total VP incl. hidden) and at the start of each turn in `ApplyEndTurn`, before the turn-cap draw.
 - Largest Army (`UpdateLargestArmy` in `Rules.Awards.cs`) landed with Knights in step 10, for the same validator reason as Longest Road.
 - Discards are never in the legal list (the brief's rule): agents build them, `Rules.RandomDiscard` builds a random valid one, `TestPlay.RandomAction` handles it in tests.

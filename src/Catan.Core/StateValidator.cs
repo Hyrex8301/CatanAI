@@ -231,6 +231,14 @@ public static class StateValidator
         if (!Enum.IsDefined(s.Phase))
             errors.Add($"Invalid Phase {(int)s.Phase}.");
 
+        bool trading = s.Phase is Phase.TradeReply or Phase.TradeConfirm;
+        if (s.Offer.IsActive != trading)
+            errors.Add($"Trade offer active = {s.Offer.IsActive} in phase {s.Phase}.");
+        if (!s.Offer.IsActive && s.OfferReply.Any(r => r != -1))
+            errors.Add("Trade replies are set with no active offer.");
+        if (s.OffersThisTurn > s.Settings.MaxOffersPerTurn)
+            errors.Add($"{s.OffersThisTurn} offers this turn exceeds the cap of {s.Settings.MaxOffersPerTurn}.");
+
         if (s.Phase == Phase.RoadBuilding && s.FreeRoads <= 0)
             errors.Add("Phase is RoadBuilding but no free roads are left.");
         if (s.Phase != Phase.RoadBuilding && s.FreeRoads != 0)

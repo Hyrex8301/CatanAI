@@ -5,7 +5,10 @@ namespace Catan.Tests;
 /// <summary>Shared helpers for tests that play random games.</summary>
 public static class TestPlay
 {
-    /// <summary>A random legal action: uniform from the legal list, or a random discard when the list is empty in Discard.</summary>
+    /// <summary>
+    /// A random legal action: uniform from the legal list, a random discard in Discard (never listed),
+    /// or, 5% of the time in Main, a random trade offer (also never listed).
+    /// </summary>
     public static GameAction RandomAction(GameState s, List<GameAction> legal, Rng rng)
     {
         Rules.GetLegalActions(s, legal);
@@ -15,6 +18,8 @@ public static class TestPlay
             return Rules.RandomDiscard(s, Rules.ActingSeat(s), rng);
         }
         Assert.NotEmpty(legal);
+        if (s.Phase == Phase.Main && rng.NextInt(20) == 0 && Rules.RandomTradeOffer(s, rng) is { } offer)
+            return offer;
         return legal[rng.NextInt(legal.Count)];
     }
 
@@ -29,7 +34,15 @@ public static class TestPlay
         {
             new(ActionType.RollDice, seat), new(ActionType.BuyDevCard, seat), new(ActionType.EndTurn, seat),
             new(ActionType.PlayKnight, seat), new(ActionType.PlayRoadBuilding, seat),
+            new(ActionType.AcceptOffer, seat), new(ActionType.DeclineOffer, seat), new(ActionType.CancelOffer, seat),
         };
+        for (int partner = 0; partner < GameConstants.PlayerCount; partner++)
+            candidates.Add(new(ActionType.ConfirmTrade, seat, partner));
+        for (int give = 0; give < GameConstants.ResourceCount; give++)
+            for (int count = 1; count <= 4; count++)
+                for (int get = 0; get < GameConstants.ResourceCount; get++)
+                    candidates.Add(new(ActionType.BankTrade, seat,
+                        Give: ResourceSet.Of((Resource)give, count), Get: ResourceSet.Of((Resource)get)));
         for (int r = 0; r < GameConstants.ResourceCount; r++)
         {
             candidates.Add(new(ActionType.PlayMonopoly, seat, r));

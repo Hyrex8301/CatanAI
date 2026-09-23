@@ -132,6 +132,8 @@ public partial class DebugView : Node2D
             _errors = new List<string> { $"No legal actions in {_state.Phase} for seat {Rules.ActingSeat(_state)}." };
             return;
         }
+        else if (_state.Phase == Phase.Main && _picker.NextInt(20) == 0 && Rules.RandomTradeOffer(_state, _picker) is { } offer)
+            action = offer; // offers aren't enumerated; 5% of Main decisions, like the brief's RandomBot
         else
         {
             var types = _legal.Select(a => a.Type).Distinct().ToList();
@@ -338,6 +340,11 @@ public partial class DebugView : Node2D
         DevCardBought d => $"{SeatNames[d.Seat]} bought {d.Type}",
         DevCardPlayed d => $"{SeatNames[d.Seat]} played {d.Type}",
         MonopolyTaken m => $"  took {m.Count} {((Catan.Core.Resource)m.Resource).ToString().ToLower()} from {SeatNames[m.Victim]}",
+        BankTraded b => $"{SeatNames[b.Seat]} traded {Cards(b.Gave)} to the bank for {Cards(b.Got)}",
+        TradeOffered o => $"{SeatNames[o.Seat]} offers {Cards(o.Give)} for {Cards(o.Get)}",
+        TradeReplied r => $"  {SeatNames[r.Seat]} {(r.Accepted ? "accepts" : "declines")}",
+        TradeDone t => $"{SeatNames[t.Seat]} traded with {SeatNames[t.Partner]}",
+        TradeCancelled c => $"{SeatNames[c.Seat]} cancelled the offer",
         Discarded d => $"{SeatNames[d.Seat]} discarded {Cards(d.Cards)}",
         RobberMoved r => $"{SeatNames[r.Seat]} moved the robber to hex {r.Hex}",
         CardStolen c => $"{SeatNames[c.Thief]} stole 1 {((Catan.Core.Resource)c.Resource).ToString().ToLower()} from {SeatNames[c.Victim]}",

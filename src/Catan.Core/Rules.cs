@@ -13,12 +13,14 @@ public static partial class Rules
     {
         Phase.GameOver => -1,
         Phase.Discard => LowestSeatOwingDiscard(s),
+        Phase.TradeReply => NextReplier(s),
         _ => s.CurrentPlayer,
     };
 
     /// <summary>
     /// Fills <paramref name="buffer"/> (cleared first) with every legal action. No allocations beyond list growth.
     /// Left empty during Discard: agents build the discard themselves (see <see cref="RandomDiscard"/>) and IsLegal checks it.
+    /// Trade offers are never listed either (see <see cref="RandomTradeOffer"/>).
     /// </summary>
     public static void GetLegalActions(GameState s, List<GameAction> buffer)
     {
@@ -34,6 +36,8 @@ public static partial class Rules
             case Phase.Main: MainActions(s, seat, buffer); break;
             case Phase.MoveRobber: MoveRobberActions(s, seat, buffer); break;
             case Phase.RoadBuilding: RoadBuildingActions(s, seat, buffer); break;
+            case Phase.TradeReply: TradeReplyActions(s, seat, buffer); break;
+            case Phase.TradeConfirm: TradeConfirmActions(s, seat, buffer); break;
         }
     }
 
@@ -54,7 +58,9 @@ public static partial class Rules
             Phase.Discard => IsLegalDiscard(s, a, out reason),
             Phase.MoveRobber => IsLegalMoveRobber(s, a, out reason),
             Phase.RoadBuilding => IsLegalRoadBuilding(s, a, out reason),
-            _ => Fail($"{s.Phase} isn't implemented yet.", out reason),
+            Phase.TradeReply => IsLegalTradeReply(s, a, out reason),
+            Phase.TradeConfirm => IsLegalTradeConfirm(s, a, out reason),
+            _ => Fail($"Unknown phase {s.Phase}.", out reason),
         };
     }
 
@@ -78,7 +84,12 @@ public static partial class Rules
             case ActionType.PlayRoadBuilding: ApplyPlayRoadBuilding(s, a, events); break;
             case ActionType.PlayYearOfPlenty: ApplyPlayYearOfPlenty(s, a, events); break;
             case ActionType.PlayMonopoly: ApplyPlayMonopoly(s, a, events); break;
-            default: throw new InvalidOperationException($"{a.Type} isn't implemented yet.");
+            case ActionType.BankTrade: ApplyBankTrade(s, a, events); break;
+            case ActionType.OfferTrade: ApplyOfferTrade(s, a, events); break;
+            case ActionType.AcceptOffer or ActionType.DeclineOffer: ApplyTradeReply(s, a, events); break;
+            case ActionType.ConfirmTrade: ApplyConfirmTrade(s, a, events); break;
+            case ActionType.CancelOffer: ApplyCancelOffer(s, a, events); break;
+            default: throw new InvalidOperationException($"Unknown action type {a.Type}.");
         }
         TryWin(s, events);
     }

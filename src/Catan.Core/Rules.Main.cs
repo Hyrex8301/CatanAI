@@ -27,6 +27,7 @@ public static partial class Rules
             buffer.Add(new GameAction(ActionType.BuyDevCard, seat));
 
         DevPlayActions(s, seat, buffer);
+        BankTradeActions(s, seat, buffer);
         buffer.Add(new GameAction(ActionType.EndTurn, seat));
     }
 
@@ -79,8 +80,14 @@ public static partial class Rules
             case ActionType.PlayKnight or ActionType.PlayRoadBuilding or ActionType.PlayYearOfPlenty or ActionType.PlayMonopoly:
                 return IsLegalDevPlay(s, a, out reason);
 
+            case ActionType.BankTrade:
+                return IsLegalBankTrade(s, a, out reason);
+
+            case ActionType.OfferTrade:
+                return IsLegalOfferTrade(s, a, out reason);
+
             default:
-                return Fail($"{a.Type} isn't implemented yet.", out reason);
+                return Fail($"You can't {a.Type} now.", out reason);
         }
     }
 

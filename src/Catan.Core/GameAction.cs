@@ -38,6 +38,18 @@ public sealed record DevCardPlayed(int Seat, DevCardType Type) : GameEvent;
 /// <summary>One per opponent when Monopoly is played, including opponents who had none.</summary>
 public sealed record MonopolyTaken(int Seat, int Victim, int Resource, int Count) : GameEvent;
 
+public sealed record BankTraded(int Seat, ResourceSet Gave, ResourceSet Got) : GameEvent;
+
+/// <summary>The current player offers Give for Get to the seats in the ToSeats bitmask.</summary>
+public sealed record TradeOffered(int Seat, ResourceSet Give, ResourceSet Get, int ToSeats) : GameEvent;
+
+public sealed record TradeReplied(int Seat, bool Accepted) : GameEvent;
+
+/// <summary>Seat gave <see cref="Gave"/> to Partner and got <see cref="Got"/> back.</summary>
+public sealed record TradeDone(int Seat, int Partner, ResourceSet Gave, ResourceSet Got) : GameEvent;
+
+public sealed record TradeCancelled(int Seat) : GameEvent;
+
 public enum Award : byte { LongestRoad, LargestArmy }
 
 /// <summary>An award moved. From or To is -1 when nobody held it / nobody holds it now.</summary>
