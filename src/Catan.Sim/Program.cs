@@ -201,9 +201,32 @@ static class Sim
         };
 
         Console.WriteLine($"Training into {outDir} for up to {duration.TotalHours:F1} h on {options.Threads} threads. Ctrl+C to stop safely.");
-        new Trainer(options, line => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}")).Run(start, cts.Token);
+        KeepAwake(true);
+        try
+        {
+            new Trainer(options, line => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}")).Run(start, cts.Token);
+        }
+        finally
+        {
+            KeepAwake(false);
+        }
         return 0;
     }
+
+    /// <summary>
+    /// On Windows, asks the system not to sleep while training runs (the display may still turn off). The request ends when
+    /// training stops or the process exits; no power settings are changed.
+    /// </summary>
+    private static void KeepAwake(bool on)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        const uint Continuous = 0x80000000, SystemRequired = 0x00000001;
+        SetThreadExecutionState(on ? Continuous | SystemRequired : Continuous);
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern uint SetThreadExecutionState(uint flags);
 
     // ---- replay ----
 
