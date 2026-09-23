@@ -22,6 +22,9 @@ public sealed class GameText
 
     public static string Resource(int r) => r is >= 0 and < 5 ? ResourceNames[r] : "a card";
 
+    /// <summary>"Brick", "Lumber", ...: for card faces and tooltips.</summary>
+    public static string ResourceTitle(int r) => r is >= 0 and < 5 ? char.ToUpperInvariant(ResourceNames[r][0]) + ResourceNames[r][1..] : "Card";
+
     public static string Cards(ResourceSet cards)
     {
         var parts = new List<string>();

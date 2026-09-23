@@ -101,6 +101,9 @@ public sealed class TradePanel
             _list.AddChild(RowButton("Skip (don't answer now)", _skip));
     }
 
+    /// <summary>A card clicked in your hand: adds it to what you give, in the offer, edit or counter being built.</summary>
+    public void OfferWith(int resource) => _give.Add(resource);
+
     private void AddOfferRow(PlayerView v, int slot, IReadOnlyList<GameAction> legal, bool yourMainTurn, bool answering)
     {
         var o = v.Offers[slot];

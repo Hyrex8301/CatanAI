@@ -43,13 +43,22 @@ public sealed class FlatSkin : BoardSkin
         new(0.85f, 0.78f, 0.63f), // Desert
     };
 
-    private static readonly string[] HarborLabels = { "2:1\nBrick", "2:1\nLumber", "2:1\nWool", "2:1\nGrain", "2:1\nOre", "3:1" };
-
     private static Font Font => ThemeDB.FallbackFont;
 
     public override void Hex(CanvasItem c, Vector2[] corners, Terrain terrain)
     {
         c.DrawColoredPolygon(corners, TerrainColors[(int)terrain]);
+        // A lighter inner hex and the resource's picture above the number token.
+        var center = Vector2.Zero;
+        foreach (var p in corners)
+            center += p / corners.Length;
+        var inner = new Vector2[corners.Length];
+        for (int i = 0; i < corners.Length; i++)
+            inner[i] = center + (corners[i] - center) * 0.9f;
+        c.DrawColoredPolygon(inner, TerrainColors[(int)terrain].Lightened(0.08f));
+        float size = corners[0].DistanceTo(center);
+        if (terrain != Terrain.Desert)
+            Icons.Skin.Resource(c, center - new Vector2(0, size * 0.55f), size * 0.7f, (int)terrain);
         c.DrawPolyline(Closed(corners), Outline, 3, true);
     }
 
@@ -69,16 +78,17 @@ public sealed class FlatSkin : BoardSkin
         c.DrawLine(b, labelAt, HarborColor, size * 0.06f, true);
         c.DrawCircle(labelAt, size * 0.3f, HarborColor);
         c.DrawArc(labelAt, size * 0.3f, 0, Mathf.Tau, 32, Outline, 1.5f, true);
-        string label = HarborLabels[(int)type];
-        int fontSize = (int)(size * 0.16f);
-        if (label.Contains('\n'))
+        int fontSize = (int)(size * 0.17f);
+        if (type == HarborType.Generic)
         {
-            var parts = label.Split('\n');
-            Text(c, labelAt - new Vector2(0, fontSize * 0.55f), parts[0], fontSize, HarborText);
-            Text(c, labelAt + new Vector2(0, fontSize * 0.55f), parts[1], (int)(fontSize * 0.85f), HarborText);
+            Text(c, labelAt - new Vector2(0, fontSize * 0.45f), "3:1", (int)(fontSize * 1.15f), HarborText);
+            Text(c, labelAt + new Vector2(0, fontSize * 0.75f), "?", fontSize, HarborText);
         }
         else
-            Text(c, labelAt, label, (int)(fontSize * 1.3f), HarborText);
+        {
+            Text(c, labelAt + new Vector2(0, size * 0.15f), "2:1", fontSize, HarborText);
+            Icons.Skin.Resource(c, labelAt - new Vector2(0, size * 0.07f), size * 0.3f, (int)type);
+        }
     }
 
     public override void Road(CanvasItem c, Vector2 a, Vector2 b, float size, Color color)

@@ -10,7 +10,7 @@ M2 turns the rules engine into a game you can play with the mouse: the real boar
 |---|---|---|
 | M2 Board UI (~3–4 weeks) | Board rendering, a human agent, every action reachable by mouse (setup, building, dice, discards, robber, dev cards, bank trades, colonist-style player trades), player panels, event log, new-game settings, save / load / resume | You can play full games start to finish with only the mouse; the UI never offers an illegal action; a game saved from the UI replays in the Sim to the identical hash; all tests pass |
 
-Out of scope for M2: smarter bots and the hand tracker (M3), the sprite / texture art pass (after M2), a seat-color preference, animation and sound polish, online multiplayer, the review timeline (M9).
+Out of scope for M2: smarter bots and the hand tracker (M3), the sprite / texture art pass (after M2), a seat-color preference, sound, online multiplayer, the review timeline (M9). (Key animations were moved into M2 on 2026-09-23; see Part 2.)
 
 ## Principles
 
@@ -85,6 +85,61 @@ Same rhythm as M1: small steps, tests with each step, stop at checkpoints for yo
 | 12 | Polish pass and the manual play-test checklist | full test suite | **D**: M2 sign-off |
 
 What gets checked at each checkpoint: it looks and feels right, nothing illegal is offered, nothing hidden is shown, and nothing makes M3 (smart bots, hand tracker) harder.
+
+## Part 2: colonist.io-style interface (2026-09-23)
+
+Steps 1–3 plus the gap fill already made every action playable with plain controls. Part 2 replaces the old steps 4–12. It rebuilds the screen so it looks and plays like colonist.io. The Principles and Architecture sections above still apply (the UI never decides rules, draws only from your view, keeps Godot code thin, records every game).
+
+User decisions: colonist layout; icons drawn in code through the skin layer (no asset files, the art pass swaps them later); key animations now, sound later.
+
+**Layout (1600×900).**
+
+```
++-------------------------------------------+---------------+
+|                              [bank 5 + dev]|  LOG          |
+|                                            |  icons inline |
+|              BOARD (about 1150×700)        |               |
+|                                            +---------------+
+|        [trade offer / popup area]          | player cards  |
+|                                            | (3 opponents) |
++-------------------------------------------+---------------+
+| YOUR HAND: real cards, grouped with counts | you | Trade Dev Road Sett City | dice | End |
++-----------------------------------------------------------+
+```
+
+- **Board**: larger, on the sea. Harbors as small docks with a ratio and a resource icon. Number tokens with pips. Terrain gets a small icon.
+- **Player cards** (right): color avatar, name, big VP, card back with hand size, dev card back with count, knights, road length. The Longest Road and Largest Army badges light up for their holder. The acting player is highlighted, with a turn bar. Your own card sits beside your hand.
+- **Log** (right): colored names and small card icons instead of words ("Blue got [wool][wool]"). Only what your seat may see.
+- **Hand** (bottom): real card faces with icons, one stack per resource with a count badge, then dev cards. Cards bought this turn are dimmed. Hovering a stack shows the full name.
+- **Action bar** (bottom right): Trade, Buy Dev Card, Road, Settlement, City. Each button shows its cost on hover and the pieces you have left. A button is greyed out when unaffordable or when there's no legal spot, and the engine's reason becomes its tooltip. Then the dice (click to roll) and End Turn. Space rolls or ends the turn, Esc cancels a mode.
+- **Bank** (top-right corner of the board): cards left of each resource, dev deck size.
+
+**How moves feel.**
+
+- **Building**: click Road / Settlement / City and only then do the legal spots glow (pulsing). Click one to build, or Esc / click the button again to cancel. Setup highlights spots automatically. The spots come from the legal list, as now.
+- **Dice**: click the dice or press Space. The dice animate, the rolled number's hexes flash, and cards fly from those hexes to each receiving player.
+- **Sevens**: the discard popup works by clicking cards in your hand ("Discard 4 cards", counter, confirm). For the robber, hexes glow; when more than one player could be robbed, a small popup picks the victim (avatar and card count).
+- **Dev cards**: click a card in your hand and it lifts up with a Play button (disabled, with the reason, if not playable now). Year of Plenty and Monopoly open a resource picker. Road Building glows edges twice.
+- **Trade window** (colonist's three-row panel): the Trade button opens it above your hand, and so does clicking a resource card in your hand (the window opens with that card already in the "give" row; while it's open, clicking hand cards adds more). This applies whenever you may trade, outside discards and dev card flows, where clicking a card means picking it. Tabs are Players and Bank. The top row is what you give (click your cards), the middle row is what you get (click resources), and the bottom row is your hand as it would be after the trade. Bank tab: your ratios printed on each resource and a legend of your harbors. Your open offers stack above the board's bottom edge, one strip each with every opponent's status icon (waiting / accepted / declined / countered). Click an accepter to trade. Counters show as offer cards.
+- **Bot offers to you**: a popup card above your hand with Accept (✓, disabled if you can't pay), Decline (✗) and Counter, plus a countdown bar (the 20 s response window).
+- **Feedback**: short toasts for things that happen to you ("Blue stole a Wool from you", "You got Longest Road"). New pieces pop in and the robber slides.
+- **Game over**: an overlay with the final standings, each player's VP breakdown (settlements, cities, cards, awards) and a histogram of the dice rolled. Buttons for New game and Menu.
+
+**Code shape.** New plain C# in `Catan.UI` so it can be tested: `BuildMenu` (button states: affordable, placeable, pieces left, reason), `TradeBuilder` (give / get rows, bank ratios, validation through `IsLegal`), `InteractionMode` (none / build road / settlement / city / robber / Road Building) and turning clicks into actions, `LogText` (log lines as text plus icon runs). Godot: `Hud/HandBar`, `Hud/ActionBar`, `Hud/PlayerCards`, `Hud/TradeWindow`, `Hud/OfferPopups`, `Hud/Toasts`, `Hud/GameOver`, plus `IconSkin` (resource, dev card, knight, road, VP icons) next to `BoardSkin`. An `Animator` queues animations from applied events. The game loop waits for animations to finish before the next bot move (the bot delay still applies).
+
+**Build order.**
+
+| # | Build | Tests with it | Checkpoint |
+|---|---|---|---|
+| 4 | New layout skeleton; `IconSkin`; hand bar with real card faces; player cards; bank | card grouping, counts from the view | **A2**: the new screen looks right |
+| 5 | Action bar with build modes, costs, pieces left, disabled reasons; dice and End Turn; keyboard | build-menu states over random positions match the legal list | |
+| 6 | Log with icons; toasts | log text for every event kind, nothing hidden | |
+| 7 | Discard from the hand, robber and victim popup, dev card play flows | modes produce exactly the legal actions | **B2**: a whole game played through the new UI (no trades) |
+| 8 | Trade window (players and bank tabs), open offer strips, bot offer popups with countdown | trade builder output is legal; bank ratios | |
+| 9 | Animations: dice, flashing hexes, flying cards, piece pop, robber slide, turn bar | animation queue ordering; game loop waits | **C2**: feels like colonist |
+| 10 | Game-over overlay with standings and dice histogram; menu restyle; manual play-test checklist | VP breakdown, histogram | **D**: M2 sign-off |
+
+The old checkpoints B–D above are replaced by A2–D.
 
 ## Test plan
 
