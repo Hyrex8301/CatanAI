@@ -23,6 +23,7 @@ static class Sim
                 "random" => RandomGames(options),
                 "replay" => Replay(options),
                 "bench" => Bench(options),
+                "match" => Match(options),
                 _ => Usage(),
             };
         }
@@ -42,6 +43,9 @@ static class Sim
                                                                            failures go to --out, --save keeps every record
               replay --file PATH                                           re-run a saved game and report the first problem
               bench --seconds N [--seed S] [--pure]                        games/s and actions/s without validation
+              match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate]
+                                                                           A vs B with rotated seats; A's win rate and 95% CI
+                    BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
             """);
         return 2;
     }
@@ -121,6 +125,51 @@ static class Sim
         Console.WriteLine($"games {n} | {n / seconds:F0} games/s | {actions / seconds:F0} actions/s | " +
                           $"avg turns {results.Average(r => (double)r.Turns):F1} | turn-cap draws {Pct(draws, n)}");
         Console.WriteLine("wins by seat: " + string.Join(" ", Enumerable.Range(0, 4).Select(s => Pct(decided.Count(r => r.Winner == s), decided.Count))));
+    }
+
+    // ---- match ----
+
+    private static int Match(Options o)
+    {
+        string a = o.String("a", "smart"), b = o.String("b", "random");
+        int games = o.Int("games", 400);
+        ulong baseSeed = o.ULong("seed", 1);
+        bool twoVsTwo = o.String("layout", "1v3") == "2v2";
+        bool validate = o.Flag("validate");
+        int threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2));
+
+        var results = new (int WinnerIsA, int Winner, int Turns, int Actions)[games];
+        var sw = Stopwatch.StartNew();
+        int done = 0;
+        Parallel.For(0, games, new ParallelOptions { MaxDegreeOfParallelism = threads }, i =>
+        {
+            ulong seed = baseSeed + (ulong)i;
+            // Rotate which seats A plays so turn order evens out.
+            var isA = new bool[GameConstants.PlayerCount];
+            for (int k = 0; k < (twoVsTwo ? 2 : 1); k++)
+                isA[(i + k * 2) % GameConstants.PlayerCount] = true;
+            var agents = Enumerable.Range(0, GameConstants.PlayerCount)
+                .Select(seat => Bots.Create(isA[seat] ? a : b, Mix(seed, (ulong)seat + 11)))
+                .ToArray();
+            var runner = new GameRunner(new GameState(BoardGenerator.Balanced(new Rng(seed))), agents, new RngChance(Mix(seed, 99)), validate);
+            runner.RunAsync().GetAwaiter().GetResult();
+            int winner = runner.State.Winner;
+            results[i] = (winner >= 0 && isA[winner] ? 1 : 0, winner, runner.State.TurnNumber, runner.Actions.Count);
+            int n = Interlocked.Increment(ref done);
+            if (n % Math.Max(1, games / 10) == 0)
+                Console.Error.Write($"\r  {n}/{games} games...");
+        });
+        sw.Stop();
+        Console.Error.WriteLine();
+
+        int decided = results.Count(r => r.Winner >= 0);
+        double p = (double)results.Sum(r => r.WinnerIsA) / games;
+        double ci = 1.96 * Math.Sqrt(p * (1 - p) / games);
+        double fair = twoVsTwo ? 0.5 : 0.25;
+        Console.WriteLine($"{a} vs {b} ({(twoVsTwo ? "2v2" : "1v3")}): {games} games, {games / sw.Elapsed.TotalSeconds:F1} games/s, " +
+                          $"avg turns {results.Average(r => r.Turns):F0}, draws {games - decided}");
+        Console.WriteLine($"{a} wins {100 * p:F1}% ± {100 * ci:F1}% (equal strength would be {100 * fair:F0}%)");
+        return 0;
     }
 
     // ---- replay ----
