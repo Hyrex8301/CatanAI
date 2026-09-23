@@ -21,7 +21,7 @@ public partial class GameScreen : Control
     // your hand and the action buttons along the bottom.
     public static readonly Rect2 BoardRect = new(10, 10, 1150, 648);
     public static readonly Rect2 BankRect = new(868, 18, 284, 76);
-    public static readonly Rect2 TradesRect = new(22, 22, 350, 600);
+    public static readonly Rect2 TradesRect = new(10, 196, 580, 460); // the window shrinks to fit, bottom edge fixed
     public static readonly Rect2 LogRect = new(1172, 10, 418, 462);
     public static readonly Rect2 PlayersRect = new(1172, 482, 418, 408);
     public static readonly Rect2 HandRect = new(10, 712, 560, 178);
@@ -48,8 +48,8 @@ public partial class GameScreen : Control
     private BuildMode _mode;
     private Control _discardPanel = null!;
     private bool _shownOnce;
-    private TradePanel _trades = null!;
-    private Control _tradeWindow = null!;
+    private TradeWindow _trades = null!;
+    private readonly Queue<GameAction> _queued = new();
     private bool _tradeOpen;
     private readonly CardPicker _discard = new();
     private CardPickerView _discardView = null!;
@@ -133,10 +133,8 @@ public partial class GameScreen : Control
         banner.AddChild(pill);
         AddChild(banner);
 
-        _tradeWindow = Ui.Panel("Trade", TradesRect, out var trades);
-        _tradeWindow.Visible = false;
-        AddChild(_tradeWindow);
-        _trades = new TradePanel(trades, _text, _setup.HumanSeat, Submit, () => _human.Skip());
+        _trades = new TradeWindow(this, TradesRect, _text, _setup.HumanSeat, _setup.Colors, Submit, SubmitAll, WhyNot, () => _human.Skip(),
+            () => { _tradeOpen = false; Refresh(); });
 
         AddChild(Ui.Panel(null, LogRect, out var log));
         var header = new HBoxContainer();
@@ -244,7 +242,10 @@ public partial class GameScreen : Control
     {
         // Keep the countdown on an optional answer ticking.
         if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
+        {
             _prompt.Text = CountdownText(deadline);
+            _trades.Tick(deadline, _human.ResponseWindow);
+        }
     }
 
     public override void _Input(InputEvent @event)
@@ -294,6 +295,8 @@ public partial class GameScreen : Control
         _mode = BuildMode.None;
         _discard.Clear();
         Refresh();
+        if (_queued.Count > 0 && _human.Prompt is { IsOptional: false })
+            CallDeferred(MethodName.SubmitQueued);
     }
 
     // ---- Drawing everything from your view ----
@@ -335,7 +338,7 @@ public partial class GameScreen : Control
         // The trade window: open on request during your turn, and on its own when a bot's offer waits for your answer.
         if (!CanTrade(view, prompt))
             _tradeOpen = false;
-        _tradeWindow.Visible = _tradeOpen || prompt is { IsOptional: true };
+        _trades.Visible = _tradeOpen || prompt is { IsOptional: true };
 
         bool discarding = prompt is { IsOptional: false } && view.Phase == Phase.Discard;
         if (discarding)
@@ -410,10 +413,10 @@ public partial class GameScreen : Control
             yield break;
         }
 
-        // Moves without a proper control yet (dev card plays, bank trades); the action bar has the rest.
+        // Moves without a proper control yet (dev card plays); the action bar and trade window have the rest.
         foreach (var action in prompt.Legal)
             if (TargetOf(action).Kind == HitKind.None && !IsPlayerTrade(action.Type)
-                && action.Type is not (ActionType.RollDice or ActionType.EndTurn or ActionType.BuyDevCard))
+                && action.Type is not (ActionType.RollDice or ActionType.EndTurn or ActionType.BuyDevCard or ActionType.BankTrade))
                 yield return (_text.Describe(action), null, () => Submit(action));
     }
 
@@ -479,6 +482,25 @@ public partial class GameScreen : Control
     }
 
     /// <summary>Checks the move with the engine first (the runner would reject an illegal one and stop the game).</summary>
+    /// <summary>The engine's reason a move is illegal right now, or null if it's fine (the trade window checks as you build).</summary>
+    private string? WhyNot(GameAction action) => Rules.IsLegal(_runner.State, action, out string reason) ? null : reason;
+
+    /// <summary>Several moves in a row (a bank trade of several lots): the first now, the rest as the game asks again.</summary>
+    private void SubmitAll(List<GameAction> actions)
+    {
+        _queued.Clear();
+        for (int i = 1; i < actions.Count; i++)
+            _queued.Enqueue(actions[i]);
+        if (actions.Count > 0 && !Submit(actions[0]))
+            _queued.Clear();
+    }
+
+    private void SubmitQueued()
+    {
+        if (_queued.Count > 0 && _human.Prompt is { IsOptional: false } && !Submit(_queued.Dequeue()))
+            _queued.Clear();
+    }
+
     private bool Submit(GameAction action)
     {
         if (!Rules.IsLegal(_runner.State, action, out string reason))

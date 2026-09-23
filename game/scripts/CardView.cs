@@ -15,6 +15,9 @@ public partial class CardView : Control
     public bool Dimmed { get; private set; }
     public bool Clickable { get; set; } = true;
 
+    /// <summary>Show the count badge from 1 card up (trade slots), not only for stacks of 2 or more.</summary>
+    public bool BadgeFromOne { get; set; }
+
     /// <summary>Text in a small label under the count (e.g. "1 new").</summary>
     public string? Note { get; private set; }
 
@@ -38,11 +41,19 @@ public partial class CardView : Control
         QueueRedraw();
     }
 
+    /// <summary>A right click (the trade window uses it to take a card back out).</summary>
+    public event Action<CardView>? RightClicked;
+
     public override void _GuiInput(InputEvent @event)
     {
-        if (Clickable && @event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        if (Clickable && @event is InputEventMouseButton { Pressed: true } button)
         {
-            Clicked?.Invoke(this);
+            if (button.ButtonIndex == MouseButton.Left)
+                Clicked?.Invoke(this);
+            else if (button.ButtonIndex == MouseButton.Right)
+                RightClicked?.Invoke(this);
+            else
+                return;
             AcceptEvent();
         }
     }
@@ -52,7 +63,7 @@ public partial class CardView : Control
         float lift = _hover && Clickable ? 10 : 0;
         var rect = new Rect2(new Vector2(0, 12 - lift), new Vector2(Size.X, Size.Y - 12));
         Icons.Skin.CardFace(this, rect, IsDev, Type, Dimmed);
-        if (Count > 1)
+        if (Count > (BadgeFromOne ? 0 : 1))
         {
             var badge = rect.Position + new Vector2(rect.Size.X - 6, 6);
             DrawCircle(badge, 13, Ui.Text);

@@ -132,10 +132,10 @@ User decisions: colonist layout; icons drawn in code through the skin layer (no 
 | # | Build | Tests with it | Checkpoint |
 |---|---|---|---|
 | 4 | New layout skeleton; `IconSkin`; hand bar with real card faces; player cards; bank | card grouping, counts from the view | **A2**: the new screen looks right |
-| 5 | Action bar with build modes, costs, pieces left, disabled reasons; dice and End Turn; keyboard | build-menu states over random positions match the legal list | |
-| 6 | Log with icons; toasts | log text for every event kind, nothing hidden | |
-| 7 | Discard from the hand, robber and victim popup, dev card play flows | modes produce exactly the legal actions | **B2**: a whole game played through the new UI (no trades) |
-| 8 | Trade window (players and bank tabs), open offer strips, bot offer popups with countdown | trade builder output is legal; bank ratios | |
+| 5 | Action bar: Trade and Dev card buttons, build modes with costs, pieces left and disabled reasons; clickable dice that show every roll (who rolled what); End Turn; keyboard | bar states over random positions match the legal list | |
+| 6 | Trade window with card faces (players and bank tabs, multi-lot bank trades), open offer strips with answer chips, bot offers with countdown (moved up from 8 at the user's request) | bank ratios and lots are legal; bad picks say why | |
+| 7 | Log with icons; toasts | log text for every event kind, nothing hidden | |
+| 8 | Discard from the hand, robber and victim popup, dev card play flows | modes produce exactly the legal actions | **B2**: a whole game played through the new UI |
 | 9 | Animations: dice, flashing hexes, flying cards, piece pop, robber slide, turn bar | animation queue ordering; game loop waits | **C2**: feels like colonist |
 | 10 | Game-over overlay with standings and dice histogram; menu restyle; manual play-test checklist | VP breakdown, histogram | **D**: M2 sign-off |
 
