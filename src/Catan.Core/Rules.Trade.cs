@@ -419,59 +419,92 @@ public static partial class Rules
     // ---- Random builders for bots and tests (offers, edits and counters are never enumerated) ----
 
     /// <summary>A random new offer from the current player, or null if it can't make one.</summary>
-    public static GameAction? RandomTradeOffer(GameState s, Rng rng)
+    public static GameAction? RandomTradeOffer(GameState s, Rng rng) =>
+        RandomOffer(s.Phase, s.CurrentPlayer, s.CurrentPlayer, s.OffersThisTurn, s.Settings.MaxOffersPerTurn, s.Offers, s.HandOf(s.CurrentPlayer), rng);
+
+    /// <summary>A random new offer from the view's seat, or null if it can't make one (not its turn, cap reached, no cards).</summary>
+    public static GameAction? RandomTradeOffer(PlayerView v, Rng rng) =>
+        RandomOffer(v.Phase, v.Seat, v.CurrentPlayer, v.OffersThisTurn, v.Settings.MaxOffersPerTurn, v.Offers, v.Hand, rng);
+
+    /// <summary>A random edit of one of the current player's open offers, or null if there is none to edit.</summary>
+    public static GameAction? RandomEditOffer(GameState s, Rng rng) =>
+        RandomEdit(s.Phase, s.CurrentPlayer, s.CurrentPlayer, s.OffersThisTurn, s.Settings.MaxOffersPerTurn, s.Offers, s.HandOf(s.CurrentPlayer), rng);
+
+    public static GameAction? RandomEditOffer(PlayerView v, Rng rng) =>
+        RandomEdit(v.Phase, v.Seat, v.CurrentPlayer, v.OffersThisTurn, v.Settings.MaxOffersPerTurn, v.Offers, v.Hand, rng);
+
+    /// <summary>A random counter by <paramref name="seat"/> to an open offer it hasn't answered, or null.</summary>
+    public static GameAction? RandomCounterOffer(GameState s, int seat, Rng rng) =>
+        RandomCounter(s.Phase, seat, s.CurrentPlayer, s.Offers, s.HandOf(seat), rng);
+
+    public static GameAction? RandomCounterOffer(PlayerView v, Rng rng) =>
+        RandomCounter(v.Phase, v.Seat, v.CurrentPlayer, v.Offers, v.Hand, rng);
+
+    private static GameAction? RandomOffer(Phase phase, int seat, int current, int used, int max, TradeOffer[] offers, ReadOnlySpan<int> hand, Rng rng)
     {
-        int seat = s.CurrentPlayer;
-        if (s.Phase != Phase.Main || s.OffersThisTurn >= s.Settings.MaxOffersPerTurn || OpenOwnOffers(s) >= GameConstants.MaxOpenOffers)
+        if (phase != Phase.Main || seat != current || used >= max || CountOwnOffers(offers) >= GameConstants.MaxOpenOffers)
             return null;
-        return RandomTerms(s, seat, rng, out var give, out var get)
+        return RandomTerms(hand, rng, out var give, out var get)
             ? new GameAction(ActionType.OfferTrade, seat, Give: give, Get: get)
             : null;
     }
 
-    /// <summary>A random edit of one of the current player's open offers, or null if there is none to edit.</summary>
-    public static GameAction? RandomEditOffer(GameState s, Rng rng)
+    private static GameAction? RandomEdit(Phase phase, int seat, int current, int used, int max, TradeOffer[] offers, ReadOnlySpan<int> hand, Rng rng)
     {
-        int seat = s.CurrentPlayer;
-        if (s.Phase != Phase.Main || s.OffersThisTurn >= s.Settings.MaxOffersPerTurn)
+        if (phase != Phase.Main || seat != current || used >= max)
             return null;
-        int slot = RandomSlot(s, rng, o => !o.IsCounter);
-        return slot >= 0 && RandomTerms(s, seat, rng, out var give, out var get)
+        int slot = RandomSlot(offers, rng, seat, forCounter: false);
+        return slot >= 0 && RandomTerms(hand, rng, out var give, out var get)
             ? new GameAction(ActionType.EditOffer, seat, slot, Give: give, Get: get)
             : null;
     }
 
-    /// <summary>A random counter by <paramref name="seat"/> to an open offer it hasn't answered, or null.</summary>
-    public static GameAction? RandomCounterOffer(GameState s, int seat, Rng rng)
+    private static GameAction? RandomCounter(Phase phase, int seat, int current, TradeOffer[] offers, ReadOnlySpan<int> hand, Rng rng)
     {
-        if (s.Phase != Phase.Main || seat == s.CurrentPlayer)
+        if (phase != Phase.Main || seat == current)
             return null;
-        int slot = RandomSlot(s, rng, o => !o.IsCounter && o.ResponseOf(seat) == TradeOffer.NoResponse);
-        return slot >= 0 && RandomTerms(s, seat, rng, out var give, out var get)
+        int slot = RandomSlot(offers, rng, seat, forCounter: true);
+        return slot >= 0 && RandomTerms(hand, rng, out var give, out var get)
             ? new GameAction(ActionType.CounterOffer, seat, slot, Give: give, Get: get)
             : null;
     }
 
-    private static int RandomSlot(GameState s, Rng rng, Func<TradeOffer, bool> match)
+    private static int CountOwnOffers(TradeOffer[] offers)
+    {
+        int count = 0;
+        foreach (var o in offers)
+            if (o.IsActive && !o.IsCounter)
+                count++;
+        return count;
+    }
+
+    /// <summary>A random open offer (not a counter): any, to edit; or one <paramref name="seat"/> hasn't answered, to counter.</summary>
+    private static int RandomSlot(TradeOffer[] offers, Rng rng, int seat, bool forCounter)
     {
         Span<int> slots = stackalloc int[GameConstants.OfferSlots];
         int n = 0;
-        for (int slot = 0; slot < GameConstants.OfferSlots; slot++)
-            if (s.Offers[slot].IsActive && match(s.Offers[slot]))
+        for (int slot = 0; slot < offers.Length; slot++)
+        {
+            var o = offers[slot];
+            if (o.IsActive && !o.IsCounter && (!forCounter || o.ResponseOf(seat) == TradeOffer.NoResponse))
                 slots[n++] = slot;
+        }
         return n == 0 ? -1 : slots[rng.NextInt(n)];
     }
 
-    /// <summary>1-2 of a resource the seat holds for 1-2 of another resource.</summary>
-    private static bool RandomTerms(GameState s, int seat, Rng rng, out ResourceSet give, out ResourceSet get)
+    /// <summary>1-2 of a resource the hand holds for 1-2 of another resource.</summary>
+    private static bool RandomTerms(ReadOnlySpan<int> hand, Rng rng, out ResourceSet give, out ResourceSet get)
     {
         give = get = default;
-        if (s.HandSize(seat) == 0)
+        int total = 0;
+        foreach (int n in hand)
+            total += n;
+        if (total == 0)
             return false;
         int g;
-        do g = rng.NextInt(R); while (s.Hand[seat * R + g] == 0);
+        do g = rng.NextInt(R); while (hand[g] == 0);
         int w = (g + 1 + rng.NextInt(R - 1)) % R;
-        give = ResourceSet.Of((Resource)g, 1 + rng.NextInt(Math.Min(2, s.Hand[seat * R + g])));
+        give = ResourceSet.Of((Resource)g, 1 + rng.NextInt(Math.Min(2, hand[g])));
         get = ResourceSet.Of((Resource)w, 1 + rng.NextInt(2));
         return true;
     }

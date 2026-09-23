@@ -9,8 +9,16 @@ public readonly record struct GameAction(ActionType Type, int Seat, int Target =
 
 public enum PieceType : byte { Road, Settlement, City }
 
-/// <summary>Everything that happens in a game is reported as events. Redaction for other seats arrives in step 13.</summary>
-public abstract record GameEvent;
+/// <summary>
+/// Everything that happens in a game is reported as events. Almost all are public; <see cref="RedactFor"/> hides the two
+/// details a seat may not see: the resource in someone else's <see cref="CardStolen"/> and the type in someone else's
+/// <see cref="DevCardBought"/>.
+/// </summary>
+public abstract record GameEvent
+{
+    /// <summary>This event as <paramref name="viewer"/> may see it. Public events return themselves (no allocation).</summary>
+    public virtual GameEvent RedactFor(int viewer) => this;
+}
 
 public sealed record Built(int Seat, PieceType Piece, int Target) : GameEvent;
 
@@ -27,11 +35,21 @@ public sealed record Discarded(int Seat, ResourceSet Cards) : GameEvent;
 
 public sealed record RobberMoved(int Seat, int Hex) : GameEvent;
 
-/// <summary>Resource is a resource index. Hidden from seats other than thief and victim in step 13 (shown as -1).</summary>
-public sealed record CardStolen(int Thief, int Victim, int Resource) : GameEvent;
+/// <summary>
+/// Resource is a resource index, or -1 for seats other than thief and victim: the only resource information the game hides,
+/// so the M3 hand tracker is built around it.
+/// </summary>
+public sealed record CardStolen(int Thief, int Victim, int Resource) : GameEvent
+{
+    public override GameEvent RedactFor(int viewer) =>
+        viewer == Thief || viewer == Victim || Resource < 0 ? this : this with { Resource = -1 };
+}
 
-/// <summary>Hidden from other seats in step 13: they see Type as unknown.</summary>
-public sealed record DevCardBought(int Seat, DevCardType Type) : GameEvent;
+/// <summary>Type is null for seats other than the buyer.</summary>
+public sealed record DevCardBought(int Seat, DevCardType? Type) : GameEvent
+{
+    public override GameEvent RedactFor(int viewer) => viewer == Seat || Type is null ? this : this with { Type = null };
+}
 
 public sealed record DevCardPlayed(int Seat, DevCardType Type) : GameEvent;
 

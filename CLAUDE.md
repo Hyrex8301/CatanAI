@@ -14,7 +14,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–12 done**, checkpoints A, B and C passed. Next is step 13: events and redaction (`RedactFor`), `PlayerView`, `IPlayerAgent`, `GameRunner`, and the PlayerView leak test.
+- **M1 (rules engine): steps 1–13 done**, checkpoints A, B and C passed. Next is step 14: `GameRecord` save/load (JSON), `RecordingChance`, `ReplayChance`, replay to the identical hash, and the Determinism tests.
+- Agents only ever get a `PlayerView` (a copy; `PlayerViewTests` prove it leaks nothing). View-based helpers for bots: `Rules.RandomDiscard(view, rng)`, `RandomTradeOffer(view, rng)`, `RandomEditOffer(view, rng)`, `RandomCounterOffer(view, rng)`. `DevCardBought.Type` is nullable (null = hidden); `CardStolen.Resource` is -1 when hidden.
 - Trade offers, edits and counters, like discards, are never in the legal list; `Rules.RandomTradeOffer` / `RandomEditOffer` / `RandomCounterOffer` build random valid ones.
 
 ## Changes from the brief (user decisions)
@@ -63,6 +64,7 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Commands
 
 ```
+dotnet build CatanAI.sln -c Release    # dotnet test alone doesn't build Catan.Sim; build first
 dotnet test CatanAI.sln -c Release
 dotnet run -c Release --project src/Catan.Sim -- random --games 10000 --seed 1 --validate
 dotnet run -c Release --project src/Catan.Sim -- replay --file failures/seed-N.json

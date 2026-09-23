@@ -34,13 +34,20 @@ public static partial class Rules
     /// A valid discard for <paramref name="seat"/>, choosing each owed card at random from its hand (weighted by counts).
     /// Discards are never enumerated in the legal list; agents build them, and this helper builds a random one.
     /// </summary>
-    public static GameAction RandomDiscard(GameState s, int seat, Rng rng)
+    public static GameAction RandomDiscard(GameState s, int seat, Rng rng) => RandomDiscard(seat, s.HandOf(seat), s.DiscardOwed[seat], rng);
+
+    /// <summary>A random valid discard for the view's own seat (agents only see views).</summary>
+    public static GameAction RandomDiscard(PlayerView view, Rng rng) => RandomDiscard(view.Seat, view.Hand, view.DiscardOwed[view.Seat], rng);
+
+    private static GameAction RandomDiscard(int seat, ReadOnlySpan<int> heldCards, int owed, Rng rng)
     {
         Span<int> hand = stackalloc int[R];
-        s.HandOf(seat).CopyTo(hand);
-        int remaining = s.HandSize(seat);
+        heldCards.CopyTo(hand);
+        int remaining = 0;
+        foreach (int n in hand)
+            remaining += n;
         Span<int> discard = stackalloc int[R];
-        for (int k = 0; k < s.DiscardOwed[seat]; k++)
+        for (int k = 0; k < owed; k++)
         {
             int pick = rng.NextInt(remaining);
             int r = 0;
