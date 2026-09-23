@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('Path','User'\\); git add -A; git status --short; git commit -q -m \"M1 step 11: win check, Longest Road and Largest Army edge cases\"; git push -q; git log --format=\"%h | %an | %s\" -1; Start-Sleep 5; gh run watch \\(gh run list --limit 1 --json databaseId --jq '.[0].databaseId'\\) --exit-status > $null; gh run list --limit 1)"
-    ]
-  }
-}
