@@ -21,3 +21,16 @@ public sealed record DiceRolled(int Seat, int D1, int D2) : GameEvent
 
 /// <summary>Cards a seat received from the bank (setup payout or a roll).</summary>
 public sealed record ResourcesProduced(int Seat, ResourceSet Gained) : GameEvent;
+
+/// <summary>Hidden from other seats in step 13: they see Type as unknown.</summary>
+public sealed record DevCardBought(int Seat, DevCardType Type) : GameEvent;
+
+public enum Award : byte { LongestRoad, LargestArmy }
+
+/// <summary>An award moved. From or To is -1 when nobody held it / nobody holds it now.</summary>
+public sealed record AwardChanged(Award Award, int From, int To) : GameEvent;
+
+public sealed record TurnEnded(int Seat) : GameEvent;
+
+/// <summary>Winner is -1 for a draw at the turn cap.</summary>
+public sealed record GameEnded(int Winner) : GameEvent;

@@ -13,7 +13,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–7 done**, checkpoint A passed. Next is step 8: Main phase (roads, settlements, cities, BuyDevCard, EndTurn), then **checkpoint B**.
+- **M1 (rules engine): steps 1–8 done**, checkpoint A passed. **At checkpoint B** (first full turn loop), waiting for the user's review before step 9 (Discard, MoveRobber, steal, friendly robber).
+- The Longest Road award (`Rules.Awards.cs`) landed in step 8, because random games reach 5 roads and the validator checks the holder. Step 11 adds the FAQ cut-case tests, Largest Army and the win check. Until then games only end at `MaxTurns` (counted across all seats).
 - A rolled 7 currently just skips production and goes to Main (`SevenSkipsProductionForNow` test); step 9 replaces this with discards and the robber.
 - `Rules` is split into partial files by area (`Rules.cs` shared API and helpers, `Rules.Setup.cs`, ...). `Apply` assumes legality (fast path for search); `ApplyChecked` validates first. Events (`GameAction.cs`) are emitted as each rule is written; step 13 adds redaction.
 - `GameState` adds `DevPlayed[5]` (played dev cards by type) to the brief's layout so the validator can check all 25 dev cards. `EveryFieldIsHashedAndCopied` fails if a new field is missing from `ComputeHash` or `CopyFrom`; `NewGameHashIsPinned` pins the hash format used by saved games.

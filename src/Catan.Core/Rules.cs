@@ -27,6 +27,7 @@ public static partial class Rules
             case Phase.SetupSettlement: SetupSettlementActions(s, seat, buffer); break;
             case Phase.SetupRoad: SetupRoadActions(s, seat, buffer); break;
             case Phase.PreRoll: PreRollActions(s, seat, buffer); break;
+            case Phase.Main: MainActions(s, seat, buffer); break;
         }
     }
 
@@ -43,6 +44,7 @@ public static partial class Rules
             Phase.SetupSettlement => IsLegalSetupSettlement(s, a, out reason),
             Phase.SetupRoad => IsLegalSetupRoad(s, a, out reason),
             Phase.PreRoll => IsLegalPreRoll(s, a, out reason),
+            Phase.Main => IsLegalMain(s, a, out reason),
             _ => Fail($"{s.Phase} isn't implemented yet.", out reason),
         };
     }
@@ -50,12 +52,17 @@ public static partial class Rules
     /// <summary>Applies a legal action. Behavior for an illegal action is undefined; use <see cref="ApplyChecked"/> when unsure.</summary>
     public static void Apply(GameState s, GameAction a, IChance chance, List<GameEvent>? events = null)
     {
-        switch (s.Phase)
+        switch (a.Type)
         {
-            case Phase.SetupSettlement: ApplySetupSettlement(s, a, events); break;
-            case Phase.SetupRoad: ApplySetupRoad(s, a, events); break;
-            case Phase.PreRoll: ApplyRoll(s, a, chance, events); break;
-            default: throw new InvalidOperationException($"{s.Phase} isn't implemented yet.");
+            case ActionType.BuildSettlement when s.Phase == Phase.SetupSettlement: ApplySetupSettlement(s, a, events); break;
+            case ActionType.BuildRoad when s.Phase == Phase.SetupRoad: ApplySetupRoad(s, a, events); break;
+            case ActionType.BuildSettlement: ApplyBuildSettlement(s, a, events); break;
+            case ActionType.BuildRoad: ApplyBuildRoad(s, a, events); break;
+            case ActionType.BuildCity: ApplyBuildCity(s, a, events); break;
+            case ActionType.RollDice: ApplyRoll(s, a, chance, events); break;
+            case ActionType.BuyDevCard: ApplyBuyDevCard(s, a, chance, events); break;
+            case ActionType.EndTurn: ApplyEndTurn(s, a, events); break;
+            default: throw new InvalidOperationException($"{a.Type} isn't implemented yet.");
         }
     }
 
