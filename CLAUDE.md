@@ -13,8 +13,9 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–3 done**, checkpoint A passed. Next is step 4: `BoardGenerator` (Random, Balanced, JSON) and the board-generation tests.
-- Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based in code (the brief's rows 1–9 are spots 0–8).
+- **M1 (rules engine): steps 1–4 done**, checkpoint A passed. Next is step 5: `GameState`, `CopyFrom`, `ComputeHash`, `StateValidator`, `StateBuilder`.
+- Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based everywhere, including board JSON (the brief's table rows 1–9 are spots 0–8).
+- `Terrain` and `HarborType` put their resource first in the same order as `Resource` (Hills 0 = Brick ... ; Desert 5, Generic 5), so `(Resource)terrain` works. `Board` only accepts the exact base-game piece set.
 - Update this section when a step or checkpoint is finished.
 
 ## Workflow

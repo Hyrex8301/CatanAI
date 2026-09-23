@@ -44,4 +44,14 @@ public sealed class Rng
                 return (int)(r % b);
         }
     }
+
+    /// <summary>Fisher-Yates shuffle in place.</summary>
+    public void Shuffle<T>(Span<T> items)
+    {
+        for (int i = items.Length - 1; i > 0; i--)
+        {
+            int j = NextInt(i + 1);
+            (items[i], items[j]) = (items[j], items[i]);
+        }
+    }
 }
