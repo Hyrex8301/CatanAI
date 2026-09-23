@@ -1,2 +1,208 @@
-// Sim command-line tool. The random / replay / bench commands arrive in M1 step 15.
-Console.WriteLine($"Catan.Sim: engine reports {Catan.Core.Topology.HexCount} hexes");
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using Catan.AI;
+using Catan.Core;
+
+// Catan.Sim: finds engine bugs by playing many random games.
+//   random --games 10000 --seed 1 [--validate] [--pure] [--out failures]
+//   replay --file failures/seed-4211.json
+//   bench --seconds 10 [--seed 1] [--pure]
+return Sim.Main(args);
+
+static class Sim
+{
+    public static int Main(string[] args)
+    {
+        if (args.Length == 0)
+            return Usage();
+        var options = Options.Parse(args.Skip(1));
+        try
+        {
+            return args[0] switch
+            {
+                "random" => RandomGames(options),
+                "replay" => Replay(options),
+                "bench" => Bench(options),
+                _ => Usage(),
+            };
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
+    }
+
+    private static int Usage()
+    {
+        Console.WriteLine("""
+            Catan.Sim commands:
+              random --games N --seed S [--validate] [--pure] [--out DIR] [--save DIR]
+                                                                           play N random games (game i uses seed S+i);
+                                                                           failures go to --out, --save keeps every record
+              replay --file PATH                                           re-run a saved game and report the first problem
+              bench --seconds N [--seed S] [--pure]                        games/s and actions/s without validation
+            """);
+        return 2;
+    }
+
+    // ---- random ----
+
+    private sealed record GameResult(ulong Seed, int Actions, int Turns, int Winner, string? Error);
+
+    private static int RandomGames(Options o)
+    {
+        int games = o.Int("games", 1000);
+        ulong baseSeed = o.ULong("seed", 1);
+        bool validate = o.Flag("validate"), pure = o.Flag("pure");
+        string outDir = o.String("out", "failures");
+        string? saveDir = o.Flag("save") ? o.String("save", "records") : null;
+
+        var results = new GameResult[games];
+        var sw = Stopwatch.StartNew();
+        Parallel.For(0, games, i => results[i] = PlayOne(baseSeed + (ulong)i, validate, pure, outDir, saveDir));
+        sw.Stop();
+
+        var failed = results.Where(r => r.Error is not null).ToList();
+        Report(results, sw.Elapsed);
+        Console.WriteLine($"violations: {failed.Count}");
+        foreach (var f in failed.Take(20))
+            Console.WriteLine($"  seed {f.Seed}: {FirstLine(f.Error!)}  -> {Path.Combine(outDir, $"seed-{f.Seed}.json")}");
+        return failed.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// One game. Any rules violation or illegal choice is saved as a replayable record plus a note with the error.
+    /// With <paramref name="saveDir"/>, every finished game's record is saved there too (e.g. to add a fixed seed as a regression test).
+    /// </summary>
+    private static GameResult PlayOne(ulong seed, bool validate, bool pure, string outDir, string? saveDir)
+    {
+        var runner = CreateGame(seed, validate, pure);
+        try
+        {
+            runner.RunAsync().GetAwaiter().GetResult();
+            if (saveDir is not null)
+            {
+                Directory.CreateDirectory(saveDir);
+                File.WriteAllText(Path.Combine(saveDir, $"seed-{seed}{(pure ? "-pure" : "")}.json"), runner.ToRecord(seed).ToJson());
+            }
+            return new GameResult(seed, runner.Actions.Count, runner.State.TurnNumber, runner.State.Winner, null);
+        }
+        catch (Exception ex) when (ex is StateViolationException or InvalidOperationException or ArgumentException)
+        {
+            Directory.CreateDirectory(outDir);
+            File.WriteAllText(Path.Combine(outDir, $"seed-{seed}.json"), runner.ToRecord(seed).ToJson());
+            File.WriteAllText(Path.Combine(outDir, $"seed-{seed}.txt"), ex.ToString());
+            return new GameResult(seed, runner.Actions.Count, runner.State.TurnNumber, runner.State.Winner, ex.Message);
+        }
+    }
+
+    /// <summary>Game <paramref name="seed"/>: a balanced board from the seed, four RandomBots and dice seeded from it.</summary>
+    public static GameRunner CreateGame(ulong seed, bool validate, bool pure)
+    {
+        var state = new GameState(BoardGenerator.Balanced(new Rng(seed)));
+        var agents = Enumerable.Range(0, GameConstants.PlayerCount)
+            .Select(i => (IPlayerAgent)new RandomBot(Mix(seed, (ulong)i + 1), pure))
+            .ToArray();
+        return new GameRunner(state, agents, new RngChance(Mix(seed, 99)), validate);
+    }
+
+    private static ulong Mix(ulong seed, ulong stream) => (seed + stream) * 0x9E3779B97F4A7C15UL ^ stream;
+
+    private static void Report(IReadOnlyCollection<GameResult> results, TimeSpan elapsed)
+    {
+        int n = results.Count;
+        long actions = results.Sum(r => (long)r.Actions);
+        double seconds = Math.Max(elapsed.TotalSeconds, 1e-9);
+        int draws = results.Count(r => r.Error is null && r.Winner < 0);
+        var decided = results.Where(r => r.Error is null && r.Winner >= 0).ToList();
+        string Pct(double part, double whole) => whole == 0 ? "-" : $"{100 * part / whole:F1}%";
+
+        Console.WriteLine($"games {n} | {n / seconds:F0} games/s | {actions / seconds:F0} actions/s | " +
+                          $"avg turns {results.Average(r => (double)r.Turns):F1} | turn-cap draws {Pct(draws, n)}");
+        Console.WriteLine("wins by seat: " + string.Join(" ", Enumerable.Range(0, 4).Select(s => Pct(decided.Count(r => r.Winner == s), decided.Count))));
+    }
+
+    // ---- replay ----
+
+    private static int Replay(Options o)
+    {
+        string file = o.String("file", "");
+        if (file == "")
+            throw new ArgumentException("replay needs --file PATH");
+        var record = GameRecord.FromJson(File.ReadAllText(file));
+        var result = record.Replay(validate: true);
+        string players = string.Join(", ", record.Players);
+        Console.WriteLine($"{file}: seed {record.Seed?.ToString() ?? "-"}, {record.Actions.Count} actions, players {players}");
+        if (!result.Ok)
+        {
+            Console.WriteLine($"FAILED after {result.ActionsApplied} actions: {result.Error}");
+            return 1;
+        }
+        var s = result.State!;
+        string outcome = s.Phase != Phase.GameOver ? $"stopped in {s.Phase}" : s.Winner >= 0 ? $"seat {s.Winner} won" : "draw at the turn cap";
+        string hash = result.HashMatches == true ? "final hash matches" : "no final hash to compare";
+        Console.WriteLine($"OK: replayed {result.ActionsApplied} actions, turn {s.TurnNumber}, {outcome}, {hash} ({GameRecord.HashText(s.ComputeHash())})");
+        return 0;
+    }
+
+    // ---- bench ----
+
+    private static int Bench(Options o)
+    {
+        double seconds = o.Int("seconds", 10);
+        long nextSeed = (long)o.ULong("seed", 1);
+        bool pure = o.Flag("pure");
+        var results = new ConcurrentBag<GameResult>();
+        var sw = Stopwatch.StartNew();
+        var workers = Enumerable.Range(0, Environment.ProcessorCount).Select(_ => Task.Run(() =>
+        {
+            while (sw.Elapsed.TotalSeconds < seconds)
+            {
+                ulong seed = (ulong)Interlocked.Increment(ref nextSeed) - 1;
+                var runner = CreateGame(seed, validate: false, pure);
+                runner.RunAsync().GetAwaiter().GetResult();
+                results.Add(new GameResult(seed, runner.Actions.Count, runner.State.TurnNumber, runner.State.Winner, null));
+            }
+        })).ToArray();
+        Task.WaitAll(workers);
+        sw.Stop();
+
+        Console.WriteLine($"bench: {Environment.ProcessorCount} threads, {sw.Elapsed.TotalSeconds:F1} s, no validation{(pure ? ", pure random" : "")}");
+        Report(results.ToArray(), sw.Elapsed);
+        return 0;
+    }
+
+    private static string FirstLine(string text) => text.Split('\n')[0].Trim();
+
+    /// <summary>--key value pairs and bare --flags.</summary>
+    private sealed class Options
+    {
+        private readonly Dictionary<string, string?> _values = new();
+
+        public static Options Parse(IEnumerable<string> args)
+        {
+            var o = new Options();
+            var list = args.ToList();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (!list[i].StartsWith("--"))
+                    throw new ArgumentException($"Unexpected argument '{list[i]}'.");
+                string key = list[i][2..];
+                string? value = i + 1 < list.Count && !list[i + 1].StartsWith("--") ? list[++i] : null;
+                o._values[key] = value;
+            }
+            return o;
+        }
+
+        public bool Flag(string key) => _values.ContainsKey(key);
+
+        public string String(string key, string fallback) => _values.TryGetValue(key, out var v) && v is not null ? v : fallback;
+
+        public int Int(string key, int fallback) =>
+            _values.TryGetValue(key, out var v) ? int.TryParse(v, out int n) && n > 0 ? n : throw new ArgumentException($"--{key} needs a positive number.") : fallback;
+
+        public ulong ULong(string key, ulong fallback) =>
+            _values.TryGetValue(key, out var v) ? ulong.TryParse(v, out ulong n) ? n : throw new ArgumentException($"--{key} needs a number.") : fallback;
+    }
+}

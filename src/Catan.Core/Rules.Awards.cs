@@ -41,6 +41,7 @@ public static partial class Rules
             return false;
         s.Winner = s.CurrentPlayer;
         s.Phase = Phase.GameOver;
+        s.FreeRoads = 0; // a win mid-Road-Building (first free road takes Longest Road) forfeits the second road
         events?.Add(new GameEnded(s.Winner));
         return true;
     }

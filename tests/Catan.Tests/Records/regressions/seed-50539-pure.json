@@ -1,0 +1,5916 @@
+{
+  "formatVersion": 1,
+  "seed": 50539,
+  "settings": {
+    "vpToWin": 10,
+    "friendlyRobber": false,
+    "maxTurns": 500,
+    "maxOffersPerTurn": 10
+  },
+  "board": {
+    "hexes": [
+      {
+        "q": 0,
+        "r": -2,
+        "terrain": "Hills",
+        "number": 5
+      },
+      {
+        "q": 1,
+        "r": -2,
+        "terrain": "Pasture",
+        "number": 2
+      },
+      {
+        "q": 2,
+        "r": -2,
+        "terrain": "Mountains",
+        "number": 6
+      },
+      {
+        "q": -1,
+        "r": -1,
+        "terrain": "Forest",
+        "number": 12
+      },
+      {
+        "q": 0,
+        "r": -1,
+        "terrain": "Mountains",
+        "number": 10
+      },
+      {
+        "q": 1,
+        "r": -1,
+        "terrain": "Hills",
+        "number": 11
+      },
+      {
+        "q": 2,
+        "r": -1,
+        "terrain": "Forest",
+        "number": 11
+      },
+      {
+        "q": -2,
+        "r": 0,
+        "terrain": "Desert"
+      },
+      {
+        "q": -1,
+        "r": 0,
+        "terrain": "Pasture",
+        "number": 5
+      },
+      {
+        "q": 0,
+        "r": 0,
+        "terrain": "Pasture",
+        "number": 10
+      },
+      {
+        "q": 1,
+        "r": 0,
+        "terrain": "Fields",
+        "number": 4
+      },
+      {
+        "q": 2,
+        "r": 0,
+        "terrain": "Pasture",
+        "number": 8
+      },
+      {
+        "q": -2,
+        "r": 1,
+        "terrain": "Fields",
+        "number": 8
+      },
+      {
+        "q": -1,
+        "r": 1,
+        "terrain": "Forest",
+        "number": 3
+      },
+      {
+        "q": 0,
+        "r": 1,
+        "terrain": "Hills",
+        "number": 6
+      },
+      {
+        "q": 1,
+        "r": 1,
+        "terrain": "Mountains",
+        "number": 9
+      },
+      {
+        "q": -2,
+        "r": 2,
+        "terrain": "Forest",
+        "number": 3
+      },
+      {
+        "q": -1,
+        "r": 2,
+        "terrain": "Fields",
+        "number": 9
+      },
+      {
+        "q": 0,
+        "r": 2,
+        "terrain": "Fields",
+        "number": 4
+      }
+    ],
+    "harbors": [
+      {
+        "spot": 0,
+        "type": "Grain"
+      },
+      {
+        "spot": 1,
+        "type": "Generic"
+      },
+      {
+        "spot": 2,
+        "type": "Ore"
+      },
+      {
+        "spot": 3,
+        "type": "Brick"
+      },
+      {
+        "spot": 4,
+        "type": "Lumber"
+      },
+      {
+        "spot": 5,
+        "type": "Generic"
+      },
+      {
+        "spot": 6,
+        "type": "Generic"
+      },
+      {
+        "spot": 7,
+        "type": "Generic"
+      },
+      {
+        "spot": 8,
+        "type": "Wool"
+      }
+    ]
+  },
+  "players": [
+    "RandomBot(pure)",
+    "RandomBot(pure)",
+    "RandomBot(pure)",
+    "RandomBot(pure)"
+  ],
+  "actions": [
+    {
+      "type": "BuildSettlement",
+      "seat": 0,
+      "target": 6
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 0,
+      "target": 10
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 1,
+      "target": 26
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 52
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 2,
+      "target": 16
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 35
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 3,
+      "target": 49
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 3,
+      "target": 64
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 3,
+      "target": 38
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 3,
+      "target": 50
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 2,
+      "target": 8
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 7
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 1,
+      "target": 46
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 61
+    },
+    {
+      "type": "BuildSettlement",
+      "seat": 0,
+      "target": 5
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 0,
+      "target": 4
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "Discard",
+      "seat": 3,
+      "give": [
+        0,
+        3,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 9
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 1,
+      "target2": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 3,
+      "target": 51
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 11
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 1,
+      "target2": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 18,
+      "target2": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 10
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 3,
+      "target": 65
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 4
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 0,
+      "target": 20
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 9
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 7,
+      "target2": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 9
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 8
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 18,
+      "target2": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 14
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 7,
+      "target2": 2
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0,
+      "target2": 2
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 18
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 3,
+      "target2": 2
+    },
+    {
+      "type": "BuildCity",
+      "seat": 1,
+      "target": 46
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 5,
+      "target2": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 11
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "Discard",
+      "seat": 3,
+      "give": [
+        0,
+        2,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 9
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 32
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 17
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 0,
+      "give": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 13,
+      "target2": 3
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 38
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 0,
+      "target2": 0
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 6
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 1,
+      "target2": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 7,
+      "target2": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 0,
+      "target2": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 3,
+      "target": 63
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 11
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 31
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 7
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 16,
+      "target2": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 34
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 37
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 14
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 1,
+      "target2": 0
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 0,
+      "target2": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "PlayYearOfPlenty",
+      "seat": 1,
+      "get": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "Discard",
+      "seat": 3,
+      "give": [
+        0,
+        2,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 8
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 1,
+      "target2": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 18
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 9
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 16
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "get": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "Discard",
+      "seat": 3,
+      "give": [
+        0,
+        2,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 8
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BuildCity",
+      "seat": 1,
+      "target": 26
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 56
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 2,
+      "target2": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 44
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 12,
+      "target2": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "PlayMonopoly",
+      "seat": 3,
+      "target": 4
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 8
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 17
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "get": [
+        0,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "CounterOffer",
+      "seat": 0,
+      "target": 0,
+      "give": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 2,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "CounterOffer",
+      "seat": 1,
+      "target": 0,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 1,
+      "target": 1
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 15
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 5,
+      "target2": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "Discard",
+      "seat": 3,
+      "give": [
+        0,
+        1,
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 0,
+      "target": 12,
+      "target2": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0,
+      "target2": 2
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 3,
+      "give": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "get": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "ConfirmTrade",
+      "seat": 3,
+      "target": 0,
+      "target2": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 1
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 13,
+      "target2": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 2,
+      "give": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 33
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "CancelOffer",
+      "seat": 2,
+      "target": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "BankTrade",
+      "seat": 3,
+      "give": [
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "Discard",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 1,
+      "target": 9
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 0,
+      "give": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "CounterOffer",
+      "seat": 3,
+      "target": 0,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "ConfirmTrade",
+      "seat": 0,
+      "target": 0,
+      "target2": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "BuyDevCard",
+      "seat": 1
+    },
+    {
+      "type": "EndTurn",
+      "seat": 1
+    },
+    {
+      "type": "PlayKnight",
+      "seat": 2
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 2,
+      "target": 4
+    },
+    {
+      "type": "RollDice",
+      "seat": 2
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 2,
+      "give": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 3,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 0,
+      "target": 0
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 0
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 2,
+      "target": 11
+    },
+    {
+      "type": "BankTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "OfferTrade",
+      "seat": 2,
+      "give": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "get": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "AcceptOffer",
+      "seat": 3,
+      "target": 1
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 1,
+      "target": 1
+    },
+    {
+      "type": "DeclineOffer",
+      "seat": 2,
+      "target": 1,
+      "target2": 3
+    },
+    {
+      "type": "CounterOffer",
+      "seat": 0,
+      "target": 1,
+      "give": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "get": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 2
+    },
+    {
+      "type": "RollDice",
+      "seat": 3
+    },
+    {
+      "type": "MoveRobber",
+      "seat": 3,
+      "target": 2,
+      "target2": 2
+    },
+    {
+      "type": "EndTurn",
+      "seat": 3
+    },
+    {
+      "type": "RollDice",
+      "seat": 0
+    },
+    {
+      "type": "BankTrade",
+      "seat": 0,
+      "give": [
+        0,
+        0,
+        0,
+        0,
+        3
+      ],
+      "get": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "EndTurn",
+      "seat": 0
+    },
+    {
+      "type": "RollDice",
+      "seat": 1
+    },
+    {
+      "type": "BankTrade",
+      "seat": 1,
+      "give": [
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "get": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "PlayRoadBuilding",
+      "seat": 1
+    },
+    {
+      "type": "BuildRoad",
+      "seat": 1,
+      "target": 41
+    }
+  ],
+  "chance": [
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 2
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Draw",
+      "value": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Steal",
+      "value": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Steal",
+      "value": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 2
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Steal",
+      "value": 4
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 2
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Draw",
+      "value": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Steal",
+      "value": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 5
+    },
+    {
+      "kind": "Draw",
+      "value": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Draw",
+      "value": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Steal",
+      "value": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Draw",
+      "value": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Steal",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 6
+    },
+    {
+      "kind": "Steal",
+      "value": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    },
+    {
+      "kind": "Steal",
+      "value": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 2,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 6
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 1,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 3
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 1
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 4
+    },
+    {
+      "kind": "Draw",
+      "value": 0
+    },
+    {
+      "kind": "Dice",
+      "d1": 5,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 5
+    },
+    {
+      "kind": "Dice",
+      "d1": 6,
+      "d2": 6
+    },
+    {
+      "kind": "Draw",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 3,
+      "d2": 4
+    },
+    {
+      "kind": "Steal",
+      "value": 2
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 4
+    },
+    {
+      "kind": "Dice",
+      "d1": 4,
+      "d2": 5
+    }
+  ],
+  "finalHash": "0782d2a1788b3c4a"
+}

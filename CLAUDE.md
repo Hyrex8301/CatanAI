@@ -14,7 +14,11 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): steps 1–14 done**, checkpoints A, B and C passed. Next is step 15: `RandomBot` (Catan.AI), the Sim CLI (`random` / `replay` / `bench`), a 100k-game fuzz run, then **checkpoint D** (M1 sign-off).
+- **M1 (rules engine): all 15 steps done**, checkpoints A, B and C passed. **At checkpoint D** (M1 sign-off), waiting for the user's review. After that comes M2 (drawing the board in Godot).
+- M1 done-when, as of 2026-09-22: 100,000 validated RandomBot games with 0 violations (plus 100,000 pure-random, also 0); every saved record replays to its hash; all tests pass.
+- **Bench baseline** (2026-09-22, Ryzen 7 5800X, 16 threads, `bench --seconds 10`, no validation): **1,136 games/s, 1.04M actions/s**, avg 271.5 turns, 3.3% turn-cap draws. Compare later milestones against this.
+- `RandomBot` (Catan.AI) is a **tester, not the real AI**: it exists to find engine bugs and as the weakest baseline. Smart bots start in M3.
+- CI runs 2,000 weighted + 500 pure-random validated fuzz games per push with fresh seeds (`run_number * 100000`) and uploads `failures/` as an artifact on failure. To turn a fixed failure into a permanent test: `dotnet run -c Release --project src/Catan.Sim -- random --games 1 --seed N [--pure] --validate --save tests/Catan.Tests/Records/regressions`.
 - Records: `GameRunner` wraps its chance in `RecordingChance`; `runner.ToRecord(seed)` → `GameRecord` (JSON via `ToJson` / `FromJson`); `record.Replay(stopAfter, validate)` reports the first bad action or a hash mismatch. `ReplayChance` reads dice / steals / draws from separate queues.
 - **Every `.json` under `tests/Catan.Tests/Records/` is replayed by `RecordTests.SavedRecordStillReplays`.** `golden/` holds 3 full random games (regenerate only on purpose with `CATAN_WRITE_GOLDEN=1`, never to hide a failure: a failing golden replay means old saves broke). Sim failures that get fixed are copied in here as permanent regression tests.
 - Agents only ever get a `PlayerView` (a copy; `PlayerViewTests` prove it leaks nothing). View-based helpers for bots: `Rules.RandomDiscard(view, rng)`, `RandomTradeOffer(view, rng)`, `RandomEditOffer(view, rng)`, `RandomCounterOffer(view, rng)`. `DevCardBought.Type` is nullable (null = hidden); `CardStolen.Resource` is -1 when hidden.

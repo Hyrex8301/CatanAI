@@ -170,6 +170,25 @@ public class DevCardTests
     }
 
     [Fact]
+    public void RoadBuildingsFirstRoadCanWinTheGame()
+    {
+        // Found by the Sim fuzz run (pure random, seeds 50539 and 50948): the game ended with a free road still pending.
+        // Seat 0: 4 settlements + 4 hidden VP = 8, and 4 roads in a line; the first free road makes 5 and takes Longest Road.
+        var s = Holding()
+            .Settlement(0, Vertex(2, -2, Corner.N)).Settlement(0, Vertex(-2, 2, Corner.S)).Settlement(0, Vertex(0, 2, Corner.S))
+            .Roads(0, Edge(0, 0, Side.E), Edge(0, 0, Side.SE), Edge(0, 0, Side.SW))
+            .DevCards(0, roadBuilding: 1, victoryPoint: 4)
+            .Build();
+        Assert.Equal(8, s.TotalVP(0));
+
+        Do(s, Play(ActionType.PlayRoadBuilding));
+        Do(s, new GameAction(ActionType.BuildRoad, 0, Edge(0, 0, Side.W)));
+        Assert.Equal(Phase.GameOver, s.Phase);
+        Assert.Equal(0, s.Winner);
+        Assert.Equal(0, s.FreeRoads);
+    }
+
+    [Fact]
     public void RoadBuildingNeedsAPieceAndASpot()
     {
         var s = Holding().Build();
