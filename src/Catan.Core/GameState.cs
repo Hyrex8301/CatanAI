@@ -10,12 +10,27 @@ public sealed record GameSettings
     /// <summary>At this many turns the game ends as a draw, so random games always terminate. Real games can set it high.</summary>
     public int MaxTurns { get; init; } = 500;
 
-    public int MaxOffersPerTurn { get; init; } = 3;
+    /// <summary>New trade offers plus edits the current player may make per turn.</summary>
+    public int MaxOffersPerTurn { get; init; } = 10;
 }
 
-/// <summary>An open player-trade offer from the current player: they give <see cref="Give"/> and receive <see cref="Get"/>.</summary>
-/// <param name="ToSeats">Bitmask of seats the offer is made to.</param>
-public readonly record struct TradeOffer(bool IsActive, ResourceSet Give, ResourceSet Get, int ToSeats);
+/// <summary>
+/// One open trade proposal. <see cref="From"/> gives <see cref="Give"/> and receives <see cref="Get"/>.
+/// An offer (Parent -1) comes from the current player and is open to every opponent at once; each opponent's response is
+/// packed 2 bits per seat in <see cref="Responses"/>. A counter (Parent = the offer's slot) comes from an opponent and is
+/// addressed to the current player only.
+/// </summary>
+public readonly record struct TradeOffer(bool IsActive, int From, int Parent, ResourceSet Give, ResourceSet Get, int Responses)
+{
+    public const int NoResponse = 0, Declined = 1, Accepted = 2, Countered = 3;
+
+    public bool IsCounter => Parent >= 0;
+
+    public int ResponseOf(int seat) => (Responses >> (seat * 2)) & 3;
+
+    public TradeOffer WithResponse(int seat, int response) =>
+        this with { Responses = (Responses & ~(3 << (seat * 2))) | (response << (seat * 2)) };
+}
 
 /// <summary>
 /// Plain game data in small arrays, no rules logic. Rules live in the static Rules class; randomness comes through IChance.
@@ -56,8 +71,7 @@ public sealed class GameState
     public int CurrentPlayer, TurnNumber, SetupStep, LastRoll, FreeRoads, OffersThisTurn;
     public bool HasRolled, DevPlayedThisTurn;
     public readonly int[] DiscardOwed = new int[Seats];
-    public TradeOffer Offer;
-    public readonly sbyte[] OfferReply = new sbyte[Seats];       // -1 waiting, 0 declined, 1 accepted
+    public readonly TradeOffer[] Offers = new TradeOffer[GameConstants.OfferSlots]; // open trades this turn; inactive slots are free
     public int Winner = -1;
 
     /// <summary>A new game at the start of setup: empty board, full bank and deck, robber on the desert.</summary>
@@ -73,7 +87,6 @@ public sealed class GameState
         Array.Fill(CitiesLeft, Costs.CitiesPerPlayer);
         Array.Fill(Bank, Costs.BankPerResource);
         StandardPieces.DevDeck.CopyTo(DevDeck, 0);
-        Array.Fill(OfferReply, (sbyte)-1);
         Phase = Phase.SetupSettlement;
     }
 
@@ -133,8 +146,7 @@ public sealed class GameState
         HasRolled = other.HasRolled;
         DevPlayedThisTurn = other.DevPlayedThisTurn;
         Array.Copy(other.DiscardOwed, DiscardOwed, Seats);
-        Offer = other.Offer;
-        Array.Copy(other.OfferReply, OfferReply, Seats);
+        Array.Copy(other.Offers, Offers, Offers.Length);
         Winner = other.Winner;
     }
 
@@ -173,13 +185,17 @@ public sealed class GameState
         Mix(ref h, HasRolled ? 1 : 0);
         Mix(ref h, DevPlayedThisTurn ? 1 : 0);
         Mix(ref h, DiscardOwed);
-        Mix(ref h, Offer.IsActive ? 1 : 0);
-        for (int r = 0; r < R; r++)
-            Mix(ref h, Offer.Give[r]);
-        for (int r = 0; r < R; r++)
-            Mix(ref h, Offer.Get[r]);
-        Mix(ref h, Offer.ToSeats);
-        Mix(ref h, OfferReply);
+        foreach (var offer in Offers)
+        {
+            Mix(ref h, offer.IsActive ? 1 : 0);
+            Mix(ref h, offer.From);
+            Mix(ref h, offer.Parent);
+            for (int r = 0; r < R; r++)
+                Mix(ref h, offer.Give[r]);
+            for (int r = 0; r < R; r++)
+                Mix(ref h, offer.Get[r]);
+            Mix(ref h, offer.Responses);
+        }
         Mix(ref h, Winner);
         return h;
     }

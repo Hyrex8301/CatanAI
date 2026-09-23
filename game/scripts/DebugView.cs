@@ -125,7 +125,22 @@ public partial class DebugView : Node2D
         }
         GameAction action;
         Rules.GetLegalActions(_state, _legal);
-        if (_state.Phase == Phase.Discard)
+        var canAct = new bool[GameConstants.PlayerCount];
+        int responders = Rules.OptionalSeats(_state, canAct);
+        if (responders > 0 && _picker.NextInt(2) == 0)
+        {
+            // Opponents answer open trades at any time: pick one of them to act instead of the current player.
+            var seats = Enumerable.Range(0, GameConstants.PlayerCount).Where(i => canAct[i]).ToList();
+            int seat = seats[_picker.NextInt(seats.Count)];
+            if (_picker.NextInt(4) == 0 && Rules.RandomCounterOffer(_state, seat, _picker) is { } counter)
+                action = counter;
+            else
+            {
+                Rules.GetLegalActions(_state, seat, _legal);
+                action = _legal[_picker.NextInt(_legal.Count)];
+            }
+        }
+        else if (_state.Phase == Phase.Discard)
             action = Rules.RandomDiscard(_state, Rules.ActingSeat(_state), _picker); // discards aren't enumerated
         else if (_legal.Count == 0)
         {
@@ -134,6 +149,8 @@ public partial class DebugView : Node2D
         }
         else if (_state.Phase == Phase.Main && _picker.NextInt(20) == 0 && Rules.RandomTradeOffer(_state, _picker) is { } offer)
             action = offer; // offers aren't enumerated; 5% of Main decisions, like the brief's RandomBot
+        else if (_state.Phase == Phase.Main && _picker.NextInt(50) == 0 && Rules.RandomEditOffer(_state, _picker) is { } edit)
+            action = edit;
         else
         {
             var types = _legal.Select(a => a.Type).Distinct().ToList();
@@ -323,6 +340,26 @@ public partial class DebugView : Node2D
             }
             y += 10;
         }
+        var open = Enumerable.Range(0, _state.Offers.Length).Where(i => _state.Offers[i].IsActive).ToList();
+        if (open.Count > 0)
+        {
+            DrawString(font, new Vector2(x, y), "Open trades", HorizontalAlignment.Left, -1, 15, PanelText);
+            y += 20;
+            string[] marks = { "?", "no", "yes", "ctr" };
+            foreach (int slot in open)
+            {
+                var o = _state.Offers[slot];
+                string answers = o.IsCounter ? $"counter to #{o.Parent}"
+                    : string.Join(" ", Enumerable.Range(0, GameConstants.PlayerCount).Where(p => p != o.From)
+                        .Select(p => $"{SeatNames[p][0]}:{marks[o.ResponseOf(p)]}"));
+                DrawString(font, new Vector2(x, y), $"#{slot} {SeatNames[o.From]}: {Cards(o.Give)} for {Cards(o.Get)}",
+                    HorizontalAlignment.Left, width - 16, 13, PanelText);
+                y += 16;
+                DrawString(font, new Vector2(x + 12, y), answers, HorizontalAlignment.Left, width - 28, 12, PanelText);
+                y += 18;
+            }
+            y += 8;
+        }
         DrawString(font, new Vector2(x, y), "Recent events", HorizontalAlignment.Left, -1, 15, PanelText);
         y += 20;
         foreach (var line in _log)
@@ -341,10 +378,13 @@ public partial class DebugView : Node2D
         DevCardPlayed d => $"{SeatNames[d.Seat]} played {d.Type}",
         MonopolyTaken m => $"  took {m.Count} {((Catan.Core.Resource)m.Resource).ToString().ToLower()} from {SeatNames[m.Victim]}",
         BankTraded b => $"{SeatNames[b.Seat]} traded {Cards(b.Gave)} to the bank for {Cards(b.Got)}",
-        TradeOffered o => $"{SeatNames[o.Seat]} offers {Cards(o.Give)} for {Cards(o.Get)}",
-        TradeReplied r => $"  {SeatNames[r.Seat]} {(r.Accepted ? "accepts" : "declines")}",
-        TradeDone t => $"{SeatNames[t.Seat]} traded with {SeatNames[t.Partner]}",
-        TradeCancelled c => $"{SeatNames[c.Seat]} cancelled the offer",
+        TradeOffered o => $"{SeatNames[o.Seat]} offers {Cards(o.Give)} for {Cards(o.Get)} (#{o.Slot})",
+        TradeEdited o => $"{SeatNames[o.Seat]} edits #{o.Slot}: {Cards(o.Give)} for {Cards(o.Get)}",
+        TradeCountered c => $"  {SeatNames[c.Seat]} counters #{c.ParentSlot}: {Cards(c.Give)} for {Cards(c.Get)}",
+        TradeReplied r => $"  {SeatNames[r.Seat]} {(r.Accepted ? "accepts" : "declines")} #{r.Slot}",
+        TradeRejected r => $"{SeatNames[r.Seat]} turns down {SeatNames[r.Partner]} on #{r.Slot}",
+        TradeDone t => $"{SeatNames[t.Seat]} traded {Cards(t.Gave)} to {SeatNames[t.Partner]} for {Cards(t.Got)}",
+        TradeCancelled c => $"{SeatNames[c.Seat]} withdrew #{c.Slot}",
         Discarded d => $"{SeatNames[d.Seat]} discarded {Cards(d.Cards)}",
         RobberMoved r => $"{SeatNames[r.Seat]} moved the robber to hex {r.Hex}",
         CardStolen c => $"{SeatNames[c.Thief]} stole 1 {((Catan.Core.Resource)c.Resource).ToString().ToLower()} from {SeatNames[c.Victim]}",

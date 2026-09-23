@@ -40,15 +40,26 @@ public sealed record MonopolyTaken(int Seat, int Victim, int Resource, int Count
 
 public sealed record BankTraded(int Seat, ResourceSet Gave, ResourceSet Got) : GameEvent;
 
-/// <summary>The current player offers Give for Get to the seats in the ToSeats bitmask.</summary>
-public sealed record TradeOffered(int Seat, ResourceSet Give, ResourceSet Get, int ToSeats) : GameEvent;
+/// <summary>The current player opens an offer in <see cref="Slot"/> to every opponent: it gives Give, wants Get.</summary>
+public sealed record TradeOffered(int Seat, int Slot, ResourceSet Give, ResourceSet Get) : GameEvent;
 
-public sealed record TradeReplied(int Seat, bool Accepted) : GameEvent;
+/// <summary>The current player changed an open offer's terms; everyone's responses to it reset.</summary>
+public sealed record TradeEdited(int Seat, int Slot, ResourceSet Give, ResourceSet Get) : GameEvent;
 
-/// <summary>Seat gave <see cref="Gave"/> to Partner and got <see cref="Got"/> back.</summary>
+/// <summary>An opponent countered the offer in ParentSlot with its own proposal in Slot (it gives Give, wants Get).</summary>
+public sealed record TradeCountered(int Seat, int Slot, int ParentSlot, ResourceSet Give, ResourceSet Get) : GameEvent;
+
+/// <summary>An opponent accepted or declined the offer in Slot.</summary>
+public sealed record TradeReplied(int Seat, int Slot, bool Accepted) : GameEvent;
+
+/// <summary>The current player turned down Partner's acceptance of (or counter in) Slot.</summary>
+public sealed record TradeRejected(int Seat, int Slot, int Partner) : GameEvent;
+
+/// <summary>The current player (Seat) gave <see cref="Gave"/> to Partner and got <see cref="Got"/> back.</summary>
 public sealed record TradeDone(int Seat, int Partner, ResourceSet Gave, ResourceSet Got) : GameEvent;
 
-public sealed record TradeCancelled(int Seat) : GameEvent;
+/// <summary>An offer or counter in Slot was withdrawn by its maker.</summary>
+public sealed record TradeCancelled(int Seat, int Slot) : GameEvent;
 
 public enum Award : byte { LongestRoad, LargestArmy }
 

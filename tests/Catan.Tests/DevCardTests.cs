@@ -246,7 +246,7 @@ public class DevCardTests
         {
             var s = Holding(phase).Hand(0, brick: 1, lumber: 1).Build();
             Rules.GetLegalActions(s, legal);
-            TestPlay.AssertListMatchesIsLegal(s, legal);
+            TestPlay.AssertListMatchesIsLegal(s);
             Assert.Contains(Play(ActionType.PlayKnight), legal);
             Assert.Equal(5, legal.Count(a => a.Type == ActionType.PlayMonopoly));
             Assert.Equal(15, legal.Count(a => a.Type == ActionType.PlayYearOfPlenty));
@@ -274,7 +274,7 @@ public class DevCardTests
             {
                 var action = TestPlay.RandomAction(s, legal, rng);
                 if (s.Phase is Phase.RoadBuilding or Phase.PreRoll)
-                    TestPlay.AssertListMatchesIsLegal(s, legal);
+                    TestPlay.AssertListMatchesIsLegal(s);
                 if (action.Type is ActionType.PlayKnight or ActionType.PlayRoadBuilding or ActionType.PlayYearOfPlenty or ActionType.PlayMonopoly)
                     plays++;
                 Rules.ApplyChecked(s, action, chance);

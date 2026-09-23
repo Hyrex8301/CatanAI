@@ -28,6 +28,7 @@ public static partial class Rules
 
         DevPlayActions(s, seat, buffer);
         BankTradeActions(s, seat, buffer);
+        CurrentPlayerTradeActions(s, seat, buffer);
         buffer.Add(new GameAction(ActionType.EndTurn, seat));
     }
 
@@ -83,8 +84,9 @@ public static partial class Rules
             case ActionType.BankTrade:
                 return IsLegalBankTrade(s, a, out reason);
 
-            case ActionType.OfferTrade:
-                return IsLegalOfferTrade(s, a, out reason);
+            case ActionType.OfferTrade or ActionType.EditOffer or ActionType.CounterOffer or ActionType.AcceptOffer
+                or ActionType.DeclineOffer or ActionType.ConfirmTrade or ActionType.CancelOffer:
+                return IsLegalCurrentPlayerTrade(s, a, out reason);
 
             default:
                 return Fail($"You can't {a.Type} now.", out reason);
@@ -175,6 +177,7 @@ public static partial class Rules
         s.DevPlayedThisTurn = false;
         s.HasRolled = false;
         s.OffersThisTurn = 0;
+        Array.Clear(s.Offers); // open trades close at the end of the turn
         s.CurrentPlayer = (s.CurrentPlayer + 1) % GameConstants.PlayerCount;
         s.TurnNumber++;
         s.Phase = Phase.PreRoll;

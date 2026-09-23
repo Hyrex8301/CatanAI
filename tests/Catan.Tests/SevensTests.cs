@@ -185,7 +185,7 @@ public class SevensTests
         Rules.GetLegalActions(s, legal);
         Assert.Equal(18, legal.Count); // 18 other hexes; hex 0 has one eligible victim
         Assert.Contains(Rob(0, 0, victim: 1), legal);
-        TestPlay.AssertListMatchesIsLegal(s, legal);
+        TestPlay.AssertListMatchesIsLegal(s);
     }
 
     // ---- Friendly robber ----
@@ -223,7 +223,7 @@ public class SevensTests
         Rules.GetLegalActions(s, legal);
         Assert.Equal(18, legal.Count);
         Assert.True(Rules.IsLegal(s, Rob(0, 0), out _));
-        TestPlay.AssertListMatchesIsLegal(s, legal);
+        TestPlay.AssertListMatchesIsLegal(s);
 
         // Turn the rule off for comparison: nothing changes, since no one has cards to steal.
         s = new StateBuilder(TestBoards.Standard).Phase(Phase.MoveRobber).Build();

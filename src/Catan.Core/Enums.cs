@@ -29,8 +29,6 @@ public enum Phase : byte
     MoveRobber,
     Main,
     RoadBuilding,
-    TradeReply,
-    TradeConfirm,
     GameOver,
 }
 
@@ -39,7 +37,9 @@ public enum ActionType : byte
     BuildRoad, BuildSettlement, BuildCity,          // free during setup and Road Building
     RollDice, Discard, MoveRobber,
     BuyDevCard, PlayKnight, PlayRoadBuilding, PlayYearOfPlenty, PlayMonopoly,
-    BankTrade, OfferTrade, AcceptOffer, DeclineOffer, ConfirmTrade, CancelOffer,
+    // Player trades happen during Main. Offer / Edit / Confirm are the current player's; any opponent may Accept, Decline
+    // or Counter an open offer at any time, in any order. Target is the offer's slot; Target2 a partner seat.
+    BankTrade, OfferTrade, EditOffer, CounterOffer, AcceptOffer, DeclineOffer, ConfirmTrade, CancelOffer,
     EndTurn,
 }
 
@@ -49,4 +49,10 @@ public static class GameConstants
     public const int ResourceCount = 5;
     public const int DevCardTypeCount = 5;
     public const int DevDeckSize = 25;
+
+    /// <summary>At most this many of the current player's offers are open at once.</summary>
+    public const int MaxOpenOffers = 10;
+
+    /// <summary>Trade slots: the current player's open offers plus one open counter per opponent.</summary>
+    public const int OfferSlots = MaxOpenOffers + PlayerCount - 1;
 }

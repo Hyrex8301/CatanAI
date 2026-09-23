@@ -274,7 +274,7 @@ public class MainPhaseTests
             {
                 var action = TestPlay.RandomAction(s, legal, rng);
                 if (actions % 25 == 0 || s.Phase == Phase.MoveRobber)
-                    TestPlay.AssertListMatchesIsLegal(s, legal);
+                    TestPlay.AssertListMatchesIsLegal(s);
 
                 Rules.ApplyChecked(s, action, chance);
                 actions++;

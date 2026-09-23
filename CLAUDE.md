@@ -15,7 +15,16 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
 - **M1 (rules engine): steps 1–12 done**, checkpoints A, B and C passed. Next is step 13: events and redaction (`RedactFor`), `PlayerView`, `IPlayerAgent`, `GameRunner`, and the PlayerView leak test.
-- Trade offers, like discards, are never in the legal list; `Rules.RandomTradeOffer` builds a random valid one. Replies go in turn order after the current player; after all replies the current player must Confirm (with an accepter) or Cancel, even if everyone declined.
+- Trade offers, edits and counters, like discards, are never in the legal list; `Rules.RandomTradeOffer` / `RandomEditOffer` / `RandomCounterOffer` build random valid ones.
+
+## Changes from the brief (user decisions)
+
+- **Player trading follows colonist.io** (decided 2026-09-22, replaces the brief's TradeReply/TradeConfirm phases and moves counter-offers from M5 into M1):
+  - All trading happens inside Main. The current player may have up to 10 offers open at once (`GameConstants.MaxOpenOffers`); every offer goes to all opponents. New offers **and edits** count toward `MaxOffersPerTurn` (default 10). An edit resets that offer's responses.
+  - Responses are **truly simultaneous**: opponents may Accept / Decline / Counter any open offer at any time, in any order, once per offer version. The game never waits on them. `ActingSeat` is still the one seat the game waits on; `Rules.OptionalSeats` lists opponents who may act; `IsLegal` accepts their trade responses during Main; `GetLegalActions(s, seat, buffer)` lists any seat's actions.
+  - A counter is a proposal from that opponent to the current player (one open counter per opponent; a new one replaces it). The current player accepts it (trades immediately) or declines it. For its own offers the current player confirms with any accepter, turns an acceptance down, or cancels. All trades close at end of turn.
+  - State: `GameState.Offers` (13 slots = 10 offers + 3 counters) replaces `Offer`/`OfferReply`, so a state is a bit over the brief's 1 KB target.
+  - **Step 13 `GameRunner`**: after each action, ask the acting seat *and* every optional seat. For bots, build all their views from the same state snapshot and ask concurrently (nobody sees another's answer first), then apply in a fixed order so Sim results stay deterministic. Records store actions in applied order, so replays are exact.
 - Win check: `TryWin` runs after every `Apply` (current seat only, total VP incl. hidden) and at the start of each turn in `ApplyEndTurn`, before the turn-cap draw.
 - Largest Army (`UpdateLargestArmy` in `Rules.Awards.cs`) landed with Knights in step 10, for the same validator reason as Longest Road.
 - Discards are never in the legal list (the brief's rule): agents build them, `Rules.RandomDiscard` builds a random valid one, `TestPlay.RandomAction` handles it in tests.

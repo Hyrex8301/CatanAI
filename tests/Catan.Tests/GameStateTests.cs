@@ -26,7 +26,7 @@ public class GameStateTests
         Assert.All(s.CitiesLeft, n => Assert.Equal(4, n));
         Assert.All(s.VertexOwner, o => Assert.Equal(-1, o));
         Assert.All(s.EdgeOwner, o => Assert.Equal(-1, o));
-        Assert.All(s.OfferReply, r => Assert.Equal(-1, r));
+        Assert.All(s.Offers, o => Assert.False(o.IsActive));
         Assert.Equal(-1, s.Winner);
         Assert.Equal(-1, s.LongestRoadOwner);
         Assert.Equal(-1, s.LargestArmyOwner);
@@ -98,6 +98,9 @@ public class GameStateTests
         object value = field.GetValue(s)!;
         switch (value)
         {
+            case TradeOffer[] offers:
+                offers[0] = offers[0] with { IsActive = !offers[0].IsActive };
+                break;
             case Array array:
                 var element = array.GetValue(0)!;
                 array.SetValue(Convert.ChangeType(Convert.ToInt32(element) + 1, element.GetType()), 0);
@@ -111,9 +114,6 @@ public class GameStateTests
             case Phase p:
                 field.SetValue(s, p == Phase.Main ? Phase.PreRoll : Phase.Main);
                 break;
-            case TradeOffer offer:
-                field.SetValue(s, offer with { Give = offer.Give + ResourceSet.Of(Resource.Ore) });
-                break;
             default:
                 throw new InvalidOperationException($"Test doesn't know how to change {field.Name} ({field.FieldType.Name}); extend Mutate.");
         }
@@ -126,7 +126,7 @@ public class GameStateTests
         Assert.Equal(NewGameGoldenHash, NewGame().ComputeHash());
     }
 
-    private const ulong NewGameGoldenHash = 4180353660270957042UL;
+    private const ulong NewGameGoldenHash = 7639570165557379906UL;
 
     // ---- StateBuilder ----
 

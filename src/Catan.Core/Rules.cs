@@ -8,26 +8,36 @@ public static partial class Rules
 {
     private const int R = GameConstants.ResourceCount;
 
-    /// <summary>The one seat that must act next, or -1 once the game is over.</summary>
+    /// <summary>
+    /// The one seat the game is waiting on, or -1 once the game is over. Other seats may also have optional actions
+    /// (answering open trades during Main, see <see cref="OptionalSeats"/>), but the game never waits for them.
+    /// </summary>
     public static int ActingSeat(GameState s) => s.Phase switch
     {
         Phase.GameOver => -1,
         Phase.Discard => LowestSeatOwingDiscard(s),
-        Phase.TradeReply => NextReplier(s),
         _ => s.CurrentPlayer,
     };
 
     /// <summary>
-    /// Fills <paramref name="buffer"/> (cleared first) with every legal action. No allocations beyond list growth.
+    /// Fills <paramref name="buffer"/> (cleared first) with every legal action of the acting seat. No allocations beyond list growth.
     /// Left empty during Discard: agents build the discard themselves (see <see cref="RandomDiscard"/>) and IsLegal checks it.
-    /// Trade offers are never listed either (see <see cref="RandomTradeOffer"/>).
+    /// Trade offers, edits and counters are never listed either (see <see cref="RandomTradeOffer"/>).
     /// </summary>
-    public static void GetLegalActions(GameState s, List<GameAction> buffer)
+    public static void GetLegalActions(GameState s, List<GameAction> buffer) => GetLegalActions(s, ActingSeat(s), buffer);
+
+    /// <summary>Every legal listed action for <paramref name="seat"/>: the acting seat's actions, or an opponent's trade responses.</summary>
+    public static void GetLegalActions(GameState s, int seat, List<GameAction> buffer)
     {
         buffer.Clear();
-        int seat = ActingSeat(s);
-        if (seat < 0)
+        if (seat < 0 || seat >= GameConstants.PlayerCount || s.Phase == Phase.GameOver)
             return;
+        if (seat != ActingSeat(s))
+        {
+            if (s.Phase == Phase.Main)
+                ResponderTradeActions(s, seat, buffer);
+            return;
+        }
         switch (s.Phase)
         {
             case Phase.SetupSettlement: SetupSettlementActions(s, seat, buffer); break;
@@ -36,8 +46,6 @@ public static partial class Rules
             case Phase.Main: MainActions(s, seat, buffer); break;
             case Phase.MoveRobber: MoveRobberActions(s, seat, buffer); break;
             case Phase.RoadBuilding: RoadBuildingActions(s, seat, buffer); break;
-            case Phase.TradeReply: TradeReplyActions(s, seat, buffer); break;
-            case Phase.TradeConfirm: TradeConfirmActions(s, seat, buffer); break;
         }
     }
 
@@ -47,7 +55,12 @@ public static partial class Rules
         if (seat < 0)
             return Fail("The game is over.", out reason);
         if (a.Seat != seat)
+        {
+            // Opponents may answer open trades at any time during Main, in any order.
+            if (s.Phase == Phase.Main && IsTradeResponse(a.Type) && a.Seat is >= 0 and < GameConstants.PlayerCount)
+                return IsLegalResponderTrade(s, a, out reason);
             return Fail($"It's seat {seat}'s turn to act, not seat {a.Seat}'s.", out reason);
+        }
 
         return s.Phase switch
         {
@@ -58,8 +71,6 @@ public static partial class Rules
             Phase.Discard => IsLegalDiscard(s, a, out reason),
             Phase.MoveRobber => IsLegalMoveRobber(s, a, out reason),
             Phase.RoadBuilding => IsLegalRoadBuilding(s, a, out reason),
-            Phase.TradeReply => IsLegalTradeReply(s, a, out reason),
-            Phase.TradeConfirm => IsLegalTradeConfirm(s, a, out reason),
             _ => Fail($"Unknown phase {s.Phase}.", out reason),
         };
     }
@@ -85,10 +96,10 @@ public static partial class Rules
             case ActionType.PlayYearOfPlenty: ApplyPlayYearOfPlenty(s, a, events); break;
             case ActionType.PlayMonopoly: ApplyPlayMonopoly(s, a, events); break;
             case ActionType.BankTrade: ApplyBankTrade(s, a, events); break;
-            case ActionType.OfferTrade: ApplyOfferTrade(s, a, events); break;
-            case ActionType.AcceptOffer or ActionType.DeclineOffer: ApplyTradeReply(s, a, events); break;
-            case ActionType.ConfirmTrade: ApplyConfirmTrade(s, a, events); break;
-            case ActionType.CancelOffer: ApplyCancelOffer(s, a, events); break;
+            case ActionType.OfferTrade or ActionType.EditOffer or ActionType.CounterOffer or ActionType.AcceptOffer
+                or ActionType.DeclineOffer or ActionType.ConfirmTrade or ActionType.CancelOffer:
+                ApplyPlayerTrade(s, a, events);
+                break;
             default: throw new InvalidOperationException($"Unknown action type {a.Type}.");
         }
         TryWin(s, events);

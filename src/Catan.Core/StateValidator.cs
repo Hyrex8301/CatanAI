@@ -231,13 +231,7 @@ public static class StateValidator
         if (!Enum.IsDefined(s.Phase))
             errors.Add($"Invalid Phase {(int)s.Phase}.");
 
-        bool trading = s.Phase is Phase.TradeReply or Phase.TradeConfirm;
-        if (s.Offer.IsActive != trading)
-            errors.Add($"Trade offer active = {s.Offer.IsActive} in phase {s.Phase}.");
-        if (!s.Offer.IsActive && s.OfferReply.Any(r => r != -1))
-            errors.Add("Trade replies are set with no active offer.");
-        if (s.OffersThisTurn > s.Settings.MaxOffersPerTurn)
-            errors.Add($"{s.OffersThisTurn} offers this turn exceeds the cap of {s.Settings.MaxOffersPerTurn}.");
+        CheckTrades(s, errors);
 
         if (s.Phase == Phase.RoadBuilding && s.FreeRoads <= 0)
             errors.Add("Phase is RoadBuilding but no free roads are left.");
@@ -252,6 +246,59 @@ public static class StateValidator
         for (int seat = 0; seat < Seats; seat++)
             if (s.DiscardOwed[seat] > s.HandSize(seat))
                 errors.Add($"Seat {seat} owes {s.DiscardOwed[seat]} discards but holds {s.HandSize(seat)} cards.");
+    }
+
+    private static void CheckTrades(GameState s, List<string> errors)
+    {
+        if (s.OffersThisTurn > s.Settings.MaxOffersPerTurn)
+            errors.Add($"{s.OffersThisTurn} offers and edits this turn exceeds the cap of {s.Settings.MaxOffersPerTurn}.");
+
+        int own = 0;
+        Span<int> counters = stackalloc int[Seats];
+        for (int slot = 0; slot < s.Offers.Length; slot++)
+        {
+            var o = s.Offers[slot];
+            if (!o.IsActive)
+            {
+                if (o != default)
+                    errors.Add($"Closed trade slot {slot} isn't cleared.");
+                continue;
+            }
+            if (!s.HasRolled || s.Phase is Phase.SetupSettlement or Phase.SetupRoad or Phase.PreRoll)
+                errors.Add($"Trade slot {slot} is open before the dice were rolled.");
+            if (o.From is < 0 or >= Seats)
+            {
+                errors.Add($"Trade slot {slot} has invalid proposer {o.From}.");
+                continue;
+            }
+            for (int r = 0; r < R; r++)
+                if (o.Give[r] < 0 || o.Get[r] < 0 || (o.Give[r] > 0 && o.Get[r] > 0))
+                    errors.Add($"Trade slot {slot} has invalid terms for {(Resource)r}.");
+            if (o.Give.Total == 0 || o.Get.Total == 0)
+                errors.Add($"Trade slot {slot} is a gift.");
+
+            if (o.IsCounter)
+            {
+                if (o.From == s.CurrentPlayer)
+                    errors.Add($"Trade slot {slot} is a counter from the current player.");
+                if (++counters[o.From] > 1)
+                    errors.Add($"Seat {o.From} has more than one open counter-offer.");
+                if (o.Responses != 0)
+                    errors.Add($"Counter-offer in slot {slot} has responses.");
+            }
+            else
+            {
+                own++;
+                if (o.From != s.CurrentPlayer)
+                    errors.Add($"Trade slot {slot} is an offer from seat {o.From}, not the current player.");
+                if (o.ResponseOf(o.From) != TradeOffer.NoResponse)
+                    errors.Add($"Offer in slot {slot} has a response from its own proposer.");
+            }
+        }
+        if (own > GameConstants.MaxOpenOffers)
+            errors.Add($"{own} offers open at once exceeds {GameConstants.MaxOpenOffers}.");
+        if (own > s.OffersThisTurn)
+            errors.Add($"{own} offers open but only {s.OffersThisTurn} made this turn.");
     }
 
     /// <summary>The seat with the strictly highest value, if that value is at least <paramref name="minimum"/>; else -1.</summary>
