@@ -65,6 +65,19 @@ public sealed class StateBuilder
         return this;
     }
 
+    public StateBuilder DevPlayedThisTurn(bool played = true)
+    {
+        _s.DevPlayedThisTurn = played;
+        return this;
+    }
+
+    /// <summary>Free roads still to place in the RoadBuilding phase.</summary>
+    public StateBuilder FreeRoads(int count)
+    {
+        _s.FreeRoads = count;
+        return this;
+    }
+
     public StateBuilder Robber(int hex)
     {
         _s.RobberHex = hex;

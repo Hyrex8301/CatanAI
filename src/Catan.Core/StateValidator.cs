@@ -222,6 +222,11 @@ public static class StateValidator
         if (!Enum.IsDefined(s.Phase))
             errors.Add($"Invalid Phase {(int)s.Phase}.");
 
+        if (s.Phase == Phase.RoadBuilding && s.FreeRoads <= 0)
+            errors.Add("Phase is RoadBuilding but no free roads are left.");
+        if (s.Phase != Phase.RoadBuilding && s.FreeRoads != 0)
+            errors.Add($"FreeRoads is {s.FreeRoads} outside the RoadBuilding phase.");
+
         int owed = s.DiscardOwed.Sum();
         if (s.Phase == Phase.Discard && owed == 0)
             errors.Add("Phase is Discard but nobody owes a discard.");

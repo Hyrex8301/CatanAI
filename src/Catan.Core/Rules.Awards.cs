@@ -30,4 +30,25 @@ public static partial class Rules
         s.LongestRoadOwner = next;
         events?.Add(new AwardChanged(Award.LongestRoad, holder, next));
     }
+
+    public const int LargestArmyMinimum = 3;
+
+    /// <summary>
+    /// After <paramref name="seat"/> plays a Knight: the first to 3 Knights takes Largest Army; anyone else needs strictly more
+    /// than the holder. It is never set aside.
+    /// </summary>
+    private static void UpdateLargestArmy(GameState s, int seat, List<GameEvent>? events)
+    {
+        int holder = s.LargestArmyOwner;
+        if (seat == holder || s.KnightsPlayed[seat] < LargestArmyMinimum)
+            return;
+        if (holder >= 0 && s.KnightsPlayed[seat] <= s.KnightsPlayed[holder])
+            return;
+
+        if (holder >= 0)
+            s.PublicVP[holder] -= 2;
+        s.PublicVP[seat] += 2;
+        s.LargestArmyOwner = seat;
+        events?.Add(new AwardChanged(Award.LargestArmy, holder, seat));
+    }
 }

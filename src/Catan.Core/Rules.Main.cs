@@ -26,6 +26,7 @@ public static partial class Rules
         if (DevDeckSize(s) > 0 && Costs.DevCard.FitsIn(hand))
             buffer.Add(new GameAction(ActionType.BuyDevCard, seat));
 
+        DevPlayActions(s, seat, buffer);
         buffer.Add(new GameAction(ActionType.EndTurn, seat));
     }
 
@@ -74,6 +75,9 @@ public static partial class Rules
 
             case ActionType.RollDice:
                 return Fail("You've already rolled this turn.", out reason);
+
+            case ActionType.PlayKnight or ActionType.PlayRoadBuilding or ActionType.PlayYearOfPlenty or ActionType.PlayMonopoly:
+                return IsLegalDevPlay(s, a, out reason);
 
             default:
                 return Fail($"{a.Type} isn't implemented yet.", out reason);

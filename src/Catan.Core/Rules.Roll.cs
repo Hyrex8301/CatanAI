@@ -2,18 +2,19 @@ namespace Catan.Core;
 
 public static partial class Rules
 {
+    /// <summary>Roll, or play any one development card bought on an earlier turn (official FAQ).</summary>
     private static void PreRollActions(GameState s, int seat, List<GameAction> buffer)
     {
         buffer.Add(new GameAction(ActionType.RollDice, seat));
+        DevPlayActions(s, seat, buffer);
     }
 
     private static bool IsLegalPreRoll(GameState s, GameAction a, out string reason)
     {
         if (a.Type == ActionType.RollDice)
-        {
-            reason = "";
-            return true;
-        }
+            return Pass(out reason);
+        if (IsDevPlay(a.Type))
+            return IsLegalDevPlay(s, a, out reason);
         return Fail("Roll the dice first.", out reason);
     }
 

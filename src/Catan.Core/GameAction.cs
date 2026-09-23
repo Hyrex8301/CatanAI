@@ -33,6 +33,11 @@ public sealed record CardStolen(int Thief, int Victim, int Resource) : GameEvent
 /// <summary>Hidden from other seats in step 13: they see Type as unknown.</summary>
 public sealed record DevCardBought(int Seat, DevCardType Type) : GameEvent;
 
+public sealed record DevCardPlayed(int Seat, DevCardType Type) : GameEvent;
+
+/// <summary>One per opponent when Monopoly is played, including opponents who had none.</summary>
+public sealed record MonopolyTaken(int Seat, int Victim, int Resource, int Count) : GameEvent;
+
 public enum Award : byte { LongestRoad, LargestArmy }
 
 /// <summary>An award moved. From or To is -1 when nobody held it / nobody holds it now.</summary>

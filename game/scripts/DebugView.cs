@@ -334,6 +334,8 @@ public partial class DebugView : Node2D
         ResourcesProduced p => $"{SeatNames[p.Seat]} got {Cards(p.Gained)}",
         Built b => $"{SeatNames[b.Seat]} built a {b.Piece.ToString().ToLower()} ({b.Target})",
         DevCardBought d => $"{SeatNames[d.Seat]} bought {d.Type}",
+        DevCardPlayed d => $"{SeatNames[d.Seat]} played {d.Type}",
+        MonopolyTaken m => $"  took {m.Count} {((Catan.Core.Resource)m.Resource).ToString().ToLower()} from {SeatNames[m.Victim]}",
         Discarded d => $"{SeatNames[d.Seat]} discarded {Cards(d.Cards)}",
         RobberMoved r => $"{SeatNames[r.Seat]} moved the robber to hex {r.Hex}",
         CardStolen c => $"{SeatNames[c.Thief]} stole 1 {((Catan.Core.Resource)c.Resource).ToString().ToLower()} from {SeatNames[c.Victim]}",

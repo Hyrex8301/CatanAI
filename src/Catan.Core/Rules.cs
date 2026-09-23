@@ -33,6 +33,7 @@ public static partial class Rules
             case Phase.PreRoll: PreRollActions(s, seat, buffer); break;
             case Phase.Main: MainActions(s, seat, buffer); break;
             case Phase.MoveRobber: MoveRobberActions(s, seat, buffer); break;
+            case Phase.RoadBuilding: RoadBuildingActions(s, seat, buffer); break;
         }
     }
 
@@ -52,6 +53,7 @@ public static partial class Rules
             Phase.Main => IsLegalMain(s, a, out reason),
             Phase.Discard => IsLegalDiscard(s, a, out reason),
             Phase.MoveRobber => IsLegalMoveRobber(s, a, out reason),
+            Phase.RoadBuilding => IsLegalRoadBuilding(s, a, out reason),
             _ => Fail($"{s.Phase} isn't implemented yet.", out reason),
         };
     }
@@ -63,6 +65,7 @@ public static partial class Rules
         {
             case ActionType.BuildSettlement when s.Phase == Phase.SetupSettlement: ApplySetupSettlement(s, a, events); break;
             case ActionType.BuildRoad when s.Phase == Phase.SetupRoad: ApplySetupRoad(s, a, events); break;
+            case ActionType.BuildRoad when s.Phase == Phase.RoadBuilding: ApplyFreeRoad(s, a, events); break;
             case ActionType.BuildSettlement: ApplyBuildSettlement(s, a, events); break;
             case ActionType.BuildRoad: ApplyBuildRoad(s, a, events); break;
             case ActionType.BuildCity: ApplyBuildCity(s, a, events); break;
@@ -71,6 +74,10 @@ public static partial class Rules
             case ActionType.EndTurn: ApplyEndTurn(s, a, events); break;
             case ActionType.Discard: ApplyDiscard(s, a, events); break;
             case ActionType.MoveRobber: ApplyMoveRobber(s, a, chance, events); break;
+            case ActionType.PlayKnight: ApplyPlayKnight(s, a, events); break;
+            case ActionType.PlayRoadBuilding: ApplyPlayRoadBuilding(s, a, events); break;
+            case ActionType.PlayYearOfPlenty: ApplyPlayYearOfPlenty(s, a, events); break;
+            case ActionType.PlayMonopoly: ApplyPlayMonopoly(s, a, events); break;
             default: throw new InvalidOperationException($"{a.Type} isn't implemented yet.");
         }
     }

@@ -28,7 +28,14 @@ public static class TestPlay
         var candidates = new List<GameAction>
         {
             new(ActionType.RollDice, seat), new(ActionType.BuyDevCard, seat), new(ActionType.EndTurn, seat),
+            new(ActionType.PlayKnight, seat), new(ActionType.PlayRoadBuilding, seat),
         };
+        for (int r = 0; r < GameConstants.ResourceCount; r++)
+        {
+            candidates.Add(new(ActionType.PlayMonopoly, seat, r));
+            for (int r2 = r; r2 < GameConstants.ResourceCount; r2++)
+                candidates.Add(new(ActionType.PlayYearOfPlenty, seat, Get: ResourceSet.Of((Resource)r) + ResourceSet.Of((Resource)r2)));
+        }
         for (int e = 0; e < Topology.EdgeCount; e++)
             candidates.Add(new(ActionType.BuildRoad, seat, e));
         for (int v = 0; v < Topology.VertexCount; v++)
