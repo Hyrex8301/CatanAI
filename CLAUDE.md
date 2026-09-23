@@ -13,7 +13,8 @@ A Catan (base game) AI project: a C# rules engine, bots, a simulation CLI, and a
 ## Status
 
 - **M0 (setup): done** 2026-09-22. Godot shows "Catan.Core says: 19 hexes" and CI is green.
-- **M1 (rules engine): step 1 done** (enums, `ResourceSet`, `Costs`). Next is step 2 (topology), then **checkpoint A**.
+- **M1 (rules engine): steps 1–2 done** (enums, `ResourceSet`, `Costs`, `Topology`). **At checkpoint A**, waiting for review before step 3 (PCG32 `Rng`, `RngChance`, `ScriptedChance`).
+- Topology ids are pinned by `IdTablesMatchGoldenChecksum`. Harbor spots are 0-based in code (the brief's rows 1–9 are spots 0–8).
 - Update this section when a step or checkpoint is finished.
 
 ## Workflow
