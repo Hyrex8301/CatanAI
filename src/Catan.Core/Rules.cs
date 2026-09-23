@@ -26,6 +26,7 @@ public static partial class Rules
         {
             case Phase.SetupSettlement: SetupSettlementActions(s, seat, buffer); break;
             case Phase.SetupRoad: SetupRoadActions(s, seat, buffer); break;
+            case Phase.PreRoll: PreRollActions(s, seat, buffer); break;
         }
     }
 
@@ -41,6 +42,7 @@ public static partial class Rules
         {
             Phase.SetupSettlement => IsLegalSetupSettlement(s, a, out reason),
             Phase.SetupRoad => IsLegalSetupRoad(s, a, out reason),
+            Phase.PreRoll => IsLegalPreRoll(s, a, out reason),
             _ => Fail($"{s.Phase} isn't implemented yet.", out reason),
         };
     }
@@ -52,6 +54,7 @@ public static partial class Rules
         {
             case Phase.SetupSettlement: ApplySetupSettlement(s, a, events); break;
             case Phase.SetupRoad: ApplySetupRoad(s, a, events); break;
+            case Phase.PreRoll: ApplyRoll(s, a, chance, events); break;
             default: throw new InvalidOperationException($"{s.Phase} isn't implemented yet.");
         }
     }

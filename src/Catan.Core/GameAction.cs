@@ -14,5 +14,10 @@ public abstract record GameEvent;
 
 public sealed record Built(int Seat, PieceType Piece, int Target) : GameEvent;
 
+public sealed record DiceRolled(int Seat, int D1, int D2) : GameEvent
+{
+    public int Total => D1 + D2;
+}
+
 /// <summary>Cards a seat received from the bank (setup payout or a roll).</summary>
 public sealed record ResourcesProduced(int Seat, ResourceSet Gained) : GameEvent;
