@@ -33,6 +33,7 @@ public partial class PracticeScreen : Control
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
+        MouseFilter = MouseFilterEnum.Ignore; // let clicks through to the board (the panel still stops the ones over it)
         var background = new ColorRect { Color = Ui.Sea, MouseFilter = MouseFilterEnum.Ignore };
         background.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(background);
@@ -72,6 +73,7 @@ public partial class PracticeScreen : Control
         Deal();
         DevShots.Run(this);
     }
+
 
     private static Label Wrapped(int size, Color color)
     {

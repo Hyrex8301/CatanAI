@@ -157,7 +157,7 @@ public partial class BoardView : Node2D
             return;
         if (@event is InputEventMouseMotion)
         {
-            var hit = HitAtMouse();
+            var hit = HitAt(@event);
             if (HoverTargetsOnly && !_targets.Contains(hit) && !_quick.ContainsKey(hit))
                 hit = BoardHit.None;
             if (hit != _hover)
@@ -169,7 +169,7 @@ public partial class BoardView : Node2D
         }
         else if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
         {
-            var hit = HitAtMouse();
+            var hit = HitAt(@event);
             if (hit.Kind != HitKind.None)
             {
                 Clicked?.Invoke(hit);
@@ -178,9 +178,10 @@ public partial class BoardView : Node2D
         }
     }
 
-    private BoardHit HitAtMouse()
+    /// <summary>What a mouse event lands on, from the event's own position (not wherever the cursor is now).</summary>
+    private BoardHit HitAt(InputEvent @event)
     {
-        var p = GetLocalMousePosition();
+        var p = GetGlobalTransformWithCanvas().AffineInverse() * ((InputEventMouse)@event).Position;
         return _geometry.HitTest(p.X, p.Y);
     }
 
