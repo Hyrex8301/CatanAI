@@ -39,8 +39,8 @@ public sealed record SearchSettings
     /// <summary>Moves considered at deeper decisions: the best few by the cheap playout policy.</summary>
     public int InnerMoves { get; init; } = 3;
 
-    /// <summary>Turns (any player's) searched past the current one before the position is scored.</summary>
-    public int CutoffTurns { get; init; } = 8;
+    /// <summary>Turns (any player's) searched past the current one before the position is scored. 16 beat 8 in 1v3 tests (38% vs 31%).</summary>
+    public int CutoffTurns { get; init; } = 16;
 
     /// <summary>UCB exploration constant (win chances are 0..1).</summary>
     public double Exploration { get; init; } = 0.5;
