@@ -55,4 +55,33 @@ public class PlacementCoachTests
         Assert.Equal(5, total);
         Assert.Equal(5, perResource[(int)Resource.Brick]);
     }
+
+    [Fact]
+    public void SecondRoundPracticeHasTheFirstRoundDoneAndTheReverseOrderBeforeYou()
+    {
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            var s = Coach.Deal(seed, out int seat, round: 2);
+            Assert.Equal(Phase.SetupSettlement, s.Phase);
+            Assert.Equal(seat, Rules.ActingSeat(s));
+            Assert.Equal(1, Enumerable.Range(0, VertexCount).Count(v => s.VertexOwner[v] == seat)); // your first, placed for you
+            // Round 2 runs in reverse, so the players after you in turn order have placed their second settlement.
+            Assert.Equal(4 + (3 - seat), Enumerable.Range(0, VertexCount).Count(v => s.VertexOwner[v] >= 0));
+        }
+    }
+
+    [Fact]
+    public void SecondRoundSpotsListTheirStartingCardsAndSpotsExplainThemselves()
+    {
+        var s = Coach.Deal(4, out int seat, round: 2);
+        var ratings = Coach.Rate(s, seat);
+        foreach (var r in ratings)
+            Assert.Equal(PlacementCoach.StartingCards(s.Board, r.Vertex), r.StartingCards);
+        Assert.Contains(ratings, r => r.StartingCards.Total >= 2);
+        Assert.NotEmpty(ratings[0].Reasons);
+        Assert.All(ratings.SelectMany(r => r.Reasons), reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
+
+        var first = Coach.Rate(Coach.Deal(4, out int s1), s1);
+        Assert.All(first, r => Assert.Equal(0, r.StartingCards.Total)); // no starting cards for a first settlement
+    }
 }

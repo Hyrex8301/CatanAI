@@ -7,9 +7,9 @@ using Catan.UI;
 using Godot;
 
 /// <summary>
-/// Placement practice: a new board with the players before you already placed; click where you'd put your first
-/// settlement, then see how the bots rate every spot: your pick's rank and rating, the top three marked gold, silver and
-/// bronze with their pips and resources, and optionally every spot's rating. Next board deals another.
+/// Placement practice, for your first or second settlement: a new board with everything before your turn already placed;
+/// click where you'd build, then see how the bots rate every spot: your pick's rank and rating, the top three marked gold,
+/// silver and bronze with their pips, starting cards and reasons, and optionally every spot's rating. Next board deals another.
 /// </summary>
 public partial class PracticeScreen : Control
 {
@@ -27,7 +27,7 @@ public partial class PracticeScreen : Control
     private int _seat;
     private IReadOnlyList<SpotRating> _ratings = Array.Empty<SpotRating>();
     private int _picked = -1;
-    private int _boards, _perfect;
+    private int _boards, _perfect, _round = 1;
     private double _ratingTotal;
 
     public override void _Ready()
@@ -50,6 +50,18 @@ public partial class PracticeScreen : Control
         AddChild(Ui.Panel(null, PanelRect, out var panel));
         _title = Ui.Label("Placement practice", 28);
         panel.AddChild(_title);
+        // Which settlement to practice: the first, or the second (the whole first round played, yours placed by the bot).
+        var rounds = new HBoxContainer();
+        rounds.AddThemeConstantOverride("separation", 8);
+        var group = new ButtonGroup();
+        foreach (int round in new[] { 1, 2 })
+        {
+            var choice = new Button { Text = round == 1 ? "1st settlement" : "2nd settlement", ToggleMode = true, ButtonGroup = group, ButtonPressed = round == 1, FocusMode = FocusModeEnum.None, CustomMinimumSize = new Vector2(170, 40) };
+            choice.AddThemeFontSizeOverride("font_size", 16);
+            choice.Pressed += () => { _round = round; Deal(); };
+            rounds.AddChild(choice);
+        }
+        panel.AddChild(rounds);
         _situation = Wrapped(16, Ui.Text);
         panel.AddChild(_situation);
         panel.AddChild(new HSeparator());
@@ -74,7 +86,6 @@ public partial class PracticeScreen : Control
         DevShots.Run(this);
     }
 
-
     private static Label Wrapped(int size, Color color)
     {
         var label = Ui.Label("", size, color);
@@ -95,7 +106,7 @@ public partial class PracticeScreen : Control
     {
         ulong seed = ulong.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SEED"), out ulong dev) && _boards == 0 && _picked < 0
             ? dev : (ulong)System.Random.Shared.NextInt64();
-        _state = _coach.Deal(seed, out _seat);
+        _state = _coach.Deal(seed, out _seat, _round);
         _ratings = _coach.Rate(_state, _seat);
         _picked = -1;
         _showAll.ButtonPressed = false;
@@ -104,8 +115,19 @@ public partial class PracticeScreen : Control
         _board.SetTargets(_ratings.Select(r => BoardHit.Vertex(r.Vertex)));
 
         string place = (_seat + 1) switch { 1 => "1st", 2 => "2nd", 3 => "3rd", _ => "4th" };
-        string before = _seat == 0 ? "Nobody has placed yet." : $"{string.Join(" and ", Colors.Take(_seat))} placed before you.";
-        _situation.Text = $"You are {Colors[_seat]}, placing {place}. {before}\n\nClick the corner where you'd put your first settlement.";
+        if (_round == 1)
+        {
+            string before = _seat == 0 ? "Nobody has placed yet." : $"{string.Join(" and ", Colors.Take(_seat))} placed before you.";
+            _situation.Text = $"You are {Colors[_seat]}, {place} in turn order. {before}\n\nClick the corner where you'd put your first settlement.";
+        }
+        else
+        {
+            // Round 2 runs in reverse: the seats after you in turn order have already placed their second settlement.
+            var after = Colors.Skip(_seat + 1).Reverse().ToList();
+            string before = after.Count == 0 ? "You place first in this round." : $"{string.Join(" and ", after)} placed their second before you.";
+            _situation.Text = $"You are {Colors[_seat]}, {place} in turn order. Your first settlement was placed for you. {before}\n\n" +
+                              "Click where you'd put your second settlement: it gives you a card from each tile around it.";
+        }
         _result.Text = "";
         _details.Text = _boards > 0 ? Score() : "";
         _board.Redraw();
@@ -135,7 +157,7 @@ public partial class PracticeScreen : Control
         _result.Text = $"{grade}\nYour spot: #{mine.Rank} of {_ratings.Count}, rating {mine.Rating:F0}";
         var lines = new List<string> { $"Yours: {Describe(mine)}", "" };
         for (int i = 0; i < Math.Min(3, _ratings.Count); i++)
-            lines.Add($"{(i == 0 ? "Best" : i == 1 ? "2nd" : "3rd")}: {Describe(_ratings[i])}");
+            lines.Add($"{(i == 0 ? "Best" : i == 1 ? "2nd" : "3rd")}: {Describe(_ratings[i], detailed: i == 0)}");
         lines.Add("");
         lines.Add(Score());
         _details.Text = string.Join("\n", lines);
@@ -144,12 +166,14 @@ public partial class PracticeScreen : Control
 
     private string Score() => $"This session: {_boards} board{(_boards == 1 ? "" : "s")}, {_perfect} top pick{(_perfect == 1 ? "" : "s")}, average rating {(_boards == 0 ? 0 : _ratingTotal / _boards):F0}";
 
-    private static string Describe(SpotRating r)
+    private static string Describe(SpotRating r, bool detailed = true)
     {
         var parts = Enumerable.Range(0, GameConstants.ResourceCount).Where(i => r.ResourcePips[i] > 0)
             .OrderByDescending(i => r.ResourcePips[i]).Select(i => $"{GameText.Resource(i)} {r.ResourcePips[i]}");
         string harbor = r.Harbor is { } h ? h == HarborType.Generic ? ", 3:1 harbor" : $", 2:1 {GameText.Resource((int)h)} harbor" : "";
-        return $"{r.Pips} pips ({string.Join(", ", parts)}){harbor}, rating {r.Rating:F0}";
+        string starting = detailed && r.StartingCards.Total > 0 ? $"\n   starts you with {GameText.Cards(r.StartingCards)}" : "";
+        string why = detailed && r.Reasons.Count > 0 ? $"\n   why: {string.Join(", ", r.Reasons)}" : "";
+        return $"{r.Pips} pips ({string.Join(", ", parts)}){harbor}, rating {r.Rating:F0}{starting}{why}";
     }
 
     /// <summary>After a pick: medals on the top three, your pick's rank, and optionally every spot's rating.</summary>
