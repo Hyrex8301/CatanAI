@@ -99,6 +99,16 @@ public partial class BoardView : Node2D
             Skin.City(c, Vertex(hit.Id), size, _ghostColor);
     }
 
+    /// <summary>Extra drawing over the pieces (the practice screen's rating markers). Call <see cref="Redraw"/> after changing it.</summary>
+    public Action<CanvasItem>? Overlay { get; set; }
+
+    public void Redraw() => _pieces.QueueRedraw();
+
+    /// <summary>A corner's point on screen.</summary>
+    public Vector2 VertexPoint(int vertex) => Vertex(vertex) + Position;
+
+    public float HexSize => (float)_geometry.Size;
+
     /// <summary>A hex's center on screen (for cards flying from it).</summary>
     public Vector2 HexCenter(int hex) => Hex(hex) + Position;
 
@@ -256,6 +266,7 @@ public partial class BoardView : Node2D
 
         foreach (var target in _targets)
             Highlight(c, target, hover: false, size);
+        Overlay?.Invoke(c);
         if (_hover.Kind != HitKind.None && !_quick.ContainsKey(_hover))
             Highlight(c, _hover, hover: true, size);
     }

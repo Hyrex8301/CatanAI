@@ -55,6 +55,7 @@ public partial class Menu : Control
         first ??= newGame;
         AddButton("Load game", () => Toggle(_saves, FillSaves));
         _saves = Section();
+        AddButton("Placement practice", () => GetTree().ChangeSceneToFile("res://scenes/Practice.tscn"));
         AddButton("Settings", () => Toggle(_settings, FillSettings));
         _settings = Section();
         AddButton("Debug viewer", () => GetTree().ChangeSceneToFile("res://scenes/Debug.tscn"));
