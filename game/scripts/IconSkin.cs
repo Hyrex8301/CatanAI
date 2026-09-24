@@ -31,7 +31,7 @@ public abstract class IconSkin
 
 public static class Icons
 {
-    public static IconSkin Skin { get; set; } = new FlatIcons();
+    public static IconSkin Skin { get; set; } = new PaintedIcons();
 }
 
 /// <summary>The flat look: colored cards with simple vector pictures.</summary>

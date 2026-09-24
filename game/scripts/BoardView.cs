@@ -17,7 +17,7 @@ public partial class BoardView : Node2D
     private readonly HashSet<BoardHit> _targets = new();
     private BoardHit _hover = BoardHit.None;
 
-    public BoardSkin Skin { get; set; } = new FlatSkin();
+    public BoardSkin Skin { get; set; } = new PaintedSkin();
 
     /// <summary>When set, hover only shows over highlighted targets (normal play). Off shows hover anywhere (checkpoint A).</summary>
     public bool HoverTargetsOnly { get; set; }
@@ -57,12 +57,17 @@ public partial class BoardView : Node2D
     private Color _ghostColor = Colors.White;
     private GhostLayer _hoverGhost = null!, _pendingGhost = null!;
 
-    public override void _Ready()
+    // Drawing layers, back to front: the cached terrain, the live pieces, then the click-to-build shadows.
+    private readonly GhostLayer _terrain, _pieces;
+
+    public BoardView()
     {
+        _terrain = new GhostLayer { DrawFn = DrawTerrain };
+        _pieces = new GhostLayer { DrawFn = DrawPieces };
         _hoverGhost = new GhostLayer { Modulate = new Color(1, 1, 1, 0.4f), DrawFn = c => Ghost(c, _hover) };
         _pendingGhost = new GhostLayer { DrawFn = c => Ghost(c, _pending) };
-        AddChild(_hoverGhost);
-        AddChild(_pendingGhost);
+        foreach (var layer in new[] { _terrain, _pieces, _hoverGhost, _pendingGhost })
+            AddChild(layer);
     }
 
     public void SetQuickTargets(IEnumerable<(BoardHit Hit, PieceType Piece)> targets, Color color)
@@ -103,7 +108,7 @@ public partial class BoardView : Node2D
         if (_pending.Kind != HitKind.None)
             _pendingGhost.Modulate = new Color(1, 1, 1, 0.6f + 0.25f * Mathf.Sin((float)now * 6)); // a gentle pulse
         if (now - _flashStart < FlashSeconds || now - _slideStart < SlideSeconds || _pops.Count > 0)
-            QueueRedraw();
+            _pieces.QueueRedraw();
         foreach (var (hit, start) in _pops.ToArray()) // a copy: finished pops are removed
             if (now - start > PopSeconds)
                 _pops.Remove(hit);
@@ -121,16 +126,19 @@ public partial class BoardView : Node2D
 
     public void Show(PlayerView view, IReadOnlyList<SeatColor> colors)
     {
+        var board = _view?.Board;
         _view = view;
         _colors = colors;
-        QueueRedraw();
+        if (!ReferenceEquals(board, view.Board))
+            _terrain.QueueRedraw(); // the cached terrain only changes with the board
+        _pieces.QueueRedraw();
     }
 
     public void SetTargets(IEnumerable<BoardHit> targets)
     {
         _targets.Clear();
         _targets.UnionWith(targets);
-        QueueRedraw();
+        _pieces.QueueRedraw();
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -146,7 +154,7 @@ public partial class BoardView : Node2D
             {
                 _hover = hit;
                 _hoverGhost.QueueRedraw();
-                QueueRedraw();
+                _pieces.QueueRedraw();
             }
         }
         else if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
@@ -166,27 +174,35 @@ public partial class BoardView : Node2D
         return _geometry.HitTest(p.X, p.Y);
     }
 
-    public override void _Draw()
+    /// <summary>The part that only changes with the board: sea, coast, tiles and harbors (drawn once, then cached).</summary>
+    private void DrawTerrain(CanvasItem c)
+    {
+        if (_view is null)
+            return;
+        var board = _view.Board;
+        float size = (float)_geometry.Size;
+        for (int pass = 0; pass < 2; pass++)
+            for (int h = 0; h < Topology.HexCount; h++)
+                Skin.Coast(c, Hex(h), Corners(h), pass);
+        for (int h = 0; h < Topology.HexCount; h++)
+            Skin.Hex(c, Hex(h), Corners(h), board.TerrainAt(h));
+        for (int spot = 0; spot < Topology.HarborCount; spot++)
+        {
+            Vector2 a = Vertex(Topology.HarborVertices[spot, 0]), b = Vertex(Topology.HarborVertices[spot, 1]);
+            var mid = (a + b) / 2;
+            var outward = (mid - Hex(Topology.HarborHex[spot])).Normalized();
+            Skin.Harbor(c, a, b, mid + outward * size * 0.72f, size, board.HarborTypeAt(spot));
+        }
+    }
+
+    /// <summary>Everything that moves: rolled-number glow, number tiles, pieces, the robber and highlights.</summary>
+    private void DrawPieces(CanvasItem c)
     {
         if (_view is null)
             return;
         var v = _view;
         var board = v.Board;
         float size = (float)_geometry.Size;
-
-        for (int pass = 0; pass < 2; pass++)
-            for (int h = 0; h < Topology.HexCount; h++)
-                Skin.Coast(this, Hex(h), Corners(h), pass);
-        for (int h = 0; h < Topology.HexCount; h++)
-            Skin.Hex(this, Hex(h), Corners(h), board.TerrainAt(h));
-
-        for (int spot = 0; spot < Topology.HarborCount; spot++)
-        {
-            Vector2 a = Vertex(Topology.HarborVertices[spot, 0]), b = Vertex(Topology.HarborVertices[spot, 1]);
-            var mid = (a + b) / 2;
-            var outward = (mid - Hex(Topology.HarborHex[spot])).Normalized();
-            Skin.Harbor(this, a, b, mid + outward * size * 0.72f, size, board.HarborTypeAt(spot));
-        }
 
         // A roll lights up the hexes with its number (two soft pulses), under their number tiles.
         double now = Time.GetTicksMsec() / 1000.0;
@@ -196,12 +212,12 @@ public partial class BoardView : Node2D
             float glow = 0.55f * Mathf.Abs(Mathf.Sin(t * Mathf.Pi * 2)) * (1 - t * 0.5f);
             for (int h = 0; h < Topology.HexCount; h++)
                 if (board.NumberAt(h) == _flashNumber)
-                    DrawColoredPolygon(Corners(h), new Color(1, 1, 0.8f, h == v.RobberHex ? glow * 0.3f : glow));
+                    c.DrawColoredPolygon(Corners(h), new Color(1, 1, 0.8f, h == v.RobberHex ? glow * 0.3f : glow));
         }
 
         for (int h = 0; h < Topology.HexCount; h++)
             if (board.NumberAt(h) != 0)
-                Skin.Token(this, Hex(h), size, board.NumberAt(h), board.PipsAt(h));
+                Skin.Token(c, Hex(h), size, board.NumberAt(h), board.PipsAt(h));
 
         for (int e = 0; e < Topology.EdgeCount; e++)
         {
@@ -209,8 +225,8 @@ public partial class BoardView : Node2D
                 continue;
             Vector2 a = Vertex(Topology.EdgeVertices[e, 0]), b = Vertex(Topology.EdgeVertices[e, 1]), mid = (a + b) / 2;
             float scale = PopScale(BoardHit.Edge(e), now);
-            DrawSetTransform(mid, 0, new Vector2(scale, scale));
-            Skin.Road(this, a - mid, b - mid, size, SeatColor(v.EdgeOwner[e]));
+            c.DrawSetTransform(mid, 0, new Vector2(scale, scale));
+            Skin.Road(c, a - mid, b - mid, size, SeatColor(v.EdgeOwner[e]));
         }
 
         for (int vertex = 0; vertex < Topology.VertexCount; vertex++)
@@ -219,13 +235,13 @@ public partial class BoardView : Node2D
             if (owner < 0)
                 continue;
             float scale = PopScale(BoardHit.Vertex(vertex), now);
-            DrawSetTransform(Vertex(vertex), 0, new Vector2(scale, scale));
+            c.DrawSetTransform(Vertex(vertex), 0, new Vector2(scale, scale));
             if (v.VertexLevel[vertex] == 2)
-                Skin.City(this, Vector2.Zero, size, SeatColor(owner));
+                Skin.City(c, Vector2.Zero, size, SeatColor(owner));
             else
-                Skin.Settlement(this, Vector2.Zero, size, SeatColor(owner));
+                Skin.Settlement(c, Vector2.Zero, size, SeatColor(owner));
         }
-        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+        c.DrawSetTransform(Vector2.Zero, 0, Vector2.One);
 
         // The robber slides from where it was drawn last.
         var robberAt = Hex(v.RobberHex) + new Vector2(-size * 0.5f, 0);
@@ -236,21 +252,21 @@ public partial class BoardView : Node2D
             robberAt = _slideFrom.Lerp(robberAt, t) - new Vector2(0, Mathf.Sin(t * Mathf.Pi) * size * 0.4f);
         }
         _robberDrawn = robberAt;
-        Skin.Robber(this, robberAt, size);
+        Skin.Robber(c, robberAt, size);
 
         foreach (var target in _targets)
-            Highlight(target, hover: false, size);
+            Highlight(c, target, hover: false, size);
         if (_hover.Kind != HitKind.None && !_quick.ContainsKey(_hover))
-            Highlight(_hover, hover: true, size);
+            Highlight(c, _hover, hover: true, size);
     }
 
-    private void Highlight(BoardHit hit, bool hover, float size)
+    private void Highlight(CanvasItem c, BoardHit hit, bool hover, float size)
     {
         switch (hit.Kind)
         {
-            case HitKind.Vertex: Skin.HighlightVertex(this, Vertex(hit.Id), size, hover); break;
-            case HitKind.Edge: Skin.HighlightEdge(this, Vertex(Topology.EdgeVertices[hit.Id, 0]), Vertex(Topology.EdgeVertices[hit.Id, 1]), size, hover); break;
-            case HitKind.Hex: Skin.HighlightHex(this, Corners(hit.Id), hover); break;
+            case HitKind.Vertex: Skin.HighlightVertex(c, Vertex(hit.Id), size, hover); break;
+            case HitKind.Edge: Skin.HighlightEdge(c, Vertex(Topology.EdgeVertices[hit.Id, 0]), Vertex(Topology.EdgeVertices[hit.Id, 1]), size, hover); break;
+            case HitKind.Hex: Skin.HighlightHex(c, Corners(hit.Id), hover); break;
         }
     }
 
