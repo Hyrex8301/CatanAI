@@ -26,6 +26,7 @@ static class Sim
                 "match" => Match(options),
                 "ladder" => LadderCommand(options),
                 "calibrate" => Calibrate(options),
+                "think" => Think(options),
                 "train" => Train(options),
                 _ => Usage(),
             };
@@ -51,6 +52,7 @@ static class Sim
                     BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
               ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
               calibrate [--weights W.json] [--games N] [--out F.json]      fit evaluation values to win chances from self-play
+              think [--weights W.json] [--ms M] [--positions N]            search iterations a thinking time buys (all threads)
               train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
                                                                            self-play training; resumes if DIR has a checkpoint;
                                                                            Ctrl+C stops after the current generation
@@ -244,6 +246,40 @@ static class Sim
             File.WriteAllText(o.String("out", ""), model.ToJson());
             Console.WriteLine($"saved {o.String("out", "")}");
         }
+        return 0;
+    }
+
+    // ---- think ----
+
+    /// <summary>How many search iterations a thinking time buys: SearchBot on real mid-game decisions, all threads.</summary>
+    private static int Think(Options o)
+    {
+        var weights = o.Flag("weights") ? BotWeights.Load(o.String("weights", "")) : new BotWeights();
+        int ms = o.Int("ms", 1000), positions = o.Int("positions", 10);
+        int threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2));
+        SearchBot NewBot() => new(weights, WinModel.Default, new SearchSettings { ThinkMs = ms, Threads = threads }, 7); // one per game: its tracker follows one game
+        var legal = new List<GameAction>();
+        var counts = new List<int>();
+        for (ulong seed = 1; counts.Count < positions; seed++)
+        {
+            var runner = new GameRunner(new GameState(BoardGenerator.Balanced(new Rng(seed))),
+                Enumerable.Range(0, 4).Select(i => (IPlayerAgent)new SmartBot(weights, SmartBotSettings.Training, seed + (ulong)i)).ToArray(), new RngChance(seed));
+            for (int i = 0; i < 80 + (int)(seed * 17 % 200) && !runner.IsOver; i++)
+                runner.StepAsync().GetAwaiter().GetResult();
+            int seat = Rules.ActingSeat(runner.State);
+            Rules.GetLegalActions(runner.State, seat, legal);
+            if (runner.IsOver || runner.State.Phase == Phase.Discard || legal.Count < 3)
+                continue;
+            var bot = NewBot();
+            var sw = Stopwatch.StartNew();
+            bot.Decide(PlayerView.From(runner.State, seat, runner.Log), legal);
+            if (bot.LastIterations > 0)
+            {
+                counts.Add(bot.LastIterations);
+                Console.WriteLine($"  {runner.State.Phase,-12} {legal.Count,3} moves: {bot.LastIterations,6:N0} iterations in {sw.ElapsedMilliseconds} ms");
+            }
+        }
+        Console.WriteLine($"{ms} ms on {threads} threads: {counts.Average():N0} iterations per decision on average ({counts.Average() / threads:N0} per thread)");
         return 0;
     }
 
