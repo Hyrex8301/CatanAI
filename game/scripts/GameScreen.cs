@@ -61,6 +61,9 @@ public partial class GameScreen : Control
     private readonly CardPicker _discard = new();
     private readonly Queue<GameAction> _queued = new();
 
+    /// <summary>Each bot seat's agent (thinking on a worker thread); null for your seat.</summary>
+    private readonly BackgroundAgent?[] _bots = new BackgroundAgent?[GameConstants.PlayerCount];
+
     private PlayerView? _view;
     private BuildMode _mode;
     private bool _tradeOpen, _shownOnce, _countsPending;
@@ -215,13 +218,28 @@ public partial class GameScreen : Control
         int turnOffset = resume?.Actions.Count ?? 0;
         var agents = new IPlayerAgent[GameConstants.PlayerCount];
         for (int seat = 0; seat < agents.Length; seat++)
-            agents[seat] = seat == _setup.HumanSeat ? HumanSeatAgent()
-                : new SmartBot(BotWeightsFile(), SmartBotSettings.Play, _setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919);
+            agents[seat] = seat == _setup.HumanSeat ? HumanSeatAgent() : _bots[seat] = new BackgroundAgent(CreateBot(seat, turnOffset));
 
         if (resume is not null)
             return GameRunner.Resume(resume, agents, new RngChance(_setup.ChanceSeed ^ (ulong)resume.Actions.Count * 0x9E3779B97F4A7C15UL));
         var state = new GameState(BoardGenerator.Balanced(new Rng(_setup.BoardSeed)), _options.ToSettings());
         return new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
+    }
+
+    /// <summary>
+    /// A bot seat: SmartBot with the bundled weights. For trying the search bot before it's the default, CATAN_BOT=search
+    /// (optionally CATAN_THINK_MS) plays SearchBot with the bundled calibration on all but two threads.
+    /// </summary>
+    private IPlayerAgent CreateBot(int seat, int turnOffset)
+    {
+        ulong seed = _setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919;
+        if (System.Environment.GetEnvironmentVariable("CATAN_BOT") == "search")
+        {
+            int ms = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_THINK_MS"), out int t) ? t : 1000;
+            var calibration = WinModel.Load(ProjectSettings.GlobalizePath("res://bots/calibration.json"));
+            return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed);
+        }
+        return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed);
     }
 
     private IPlayerAgent HumanSeatAgent() => _autoplayActions <= 0 ? _human
@@ -252,10 +270,14 @@ public partial class GameScreen : Control
             {
                 bool humanActing = Rules.ActingSeat(_runner.State) == _setup.HumanSeat;
                 int before = _runner.Actions.Count;
+                var stepClock = System.Diagnostics.Stopwatch.StartNew();
                 await _runner.StepAsync(_quit.Token);
                 if (!humanActing && _runner.Actions.Count > before && !_runner.IsOver && _options.BotDelaySeconds > 0 && !Fast)
                 {
-                    await ToSignal(GetTree().CreateTimer(_options.BotDelaySeconds), SceneTreeTimer.SignalName.Timeout);
+                    // The pause tops up quick decisions only: a bot that thought for a while has already made you wait.
+                    double pause = _options.BotDelaySeconds - stepClock.Elapsed.TotalSeconds;
+                    if (pause > 0.02)
+                        await ToSignal(GetTree().CreateTimer(pause), SceneTreeTimer.SignalName.Timeout);
                     // Let flying cards land before the next bot move.
                     while (_animator.Busy && !_quit.IsCancellationRequested)
                         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -305,6 +327,12 @@ public partial class GameScreen : Control
         }
         else if (!_runner.IsOver)
             _bar.SetTimer(Clock((DateTime.UtcNow - _turnStarted).TotalSeconds));
+        // "Orange is thinking…" appears while a bot works on a decision (it thinks on another thread).
+        if (_human.Prompt is null && _view is { } v && !_runner.IsOver)
+        {
+            var (status, help) = StatusText(v, null);
+            _bar.SetStatus(status, help);
+        }
     }
 
     private static string Clock(double seconds) => $"{(int)seconds / 60:00}:{(int)seconds % 60:00}";
@@ -485,7 +513,7 @@ public partial class GameScreen : Control
         if (_runner.IsOver)
             return (v.Winner == _setup.HumanSeat ? "You won!" : v.Winner >= 0 ? $"{_text.Seat(v.Winner)} won" : "Draw", "The game is over.");
         if (prompt is null)
-            return (v.ActingSeat == _setup.HumanSeat ? "Your Turn" : v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)}'s Turn" : "", "Waiting for the bots.");
+            return (v.ActingSeat == _setup.HumanSeat ? "Your Turn" : v.ActingSeat >= 0 && _bots[v.ActingSeat]?.Thinking == true ? $"{_text.Seat(v.ActingSeat)} is thinking…" : v.ActingSeat >= 0 ? $"{_text.Seat(v.ActingSeat)}'s Turn" : "", "Waiting for the bots.");
         if (prompt.IsOptional)
             return ("Answer Trade", $"{_text.Seat(v.CurrentPlayer)} wants to trade: accept, decline or counter in the offer card (top right).");
         if (_choices is not null)
