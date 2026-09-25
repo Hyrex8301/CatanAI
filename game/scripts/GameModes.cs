@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Catan.UI;
 using Godot;
 
@@ -20,7 +21,37 @@ public static class GameModes
         }),
         new("Placement practice", "The whole opening in snake order; the bots rate each of your settlements and roads and say why.", PracticeSetup,
             tree => tree.ChangeSceneToFile("res://scenes/Practice.tscn")),
+        new("Position practice", "Play on from a saved position against the bots.", PositionSetup, tree =>
+        {
+            if (_chosen is null)
+                return;
+            GameSession.Resume = null;
+            GameSession.StartPosition = _chosen.Position;
+            tree.ChangeSceneToFile("res://scenes/Game.tscn");
+        }),
     };
+
+    /// <summary>The position picked on the Position practice card.</summary>
+    private static SavedPosition? _chosen;
+
+    /// <summary>Position practice: your saved positions, newest first (save one from any game: gear menu → Save position).</summary>
+    private static void PositionSetup(VBoxContainer into)
+    {
+        var saved = GameSession.Positions.List();
+        _chosen = saved.FirstOrDefault();
+        if (saved.Count == 0)
+        {
+            var none = Ui.Label("No saved positions yet. In any game, open the gear menu and pick Save position.", 14, Ui.MutedText);
+            none.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            into.AddChild(none);
+            return;
+        }
+        var list = new OptionButton { CustomMinimumSize = new Vector2(220, 0) };
+        foreach (var p in saved)
+            list.AddItem($"{p.Name}  ({p.SavedAt.ToLocalTime():MMM d HH:mm})");
+        list.ItemSelected += index => _chosen = saved[(int)index];
+        into.AddChild(Ui.SettingRow("Position", list));
+    }
 
     /// <summary>Normal game: your colour, and the board (a new random one, or a seed to get the same board again).</summary>
     private static void NormalSetup(VBoxContainer into)

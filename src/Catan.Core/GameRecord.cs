@@ -33,6 +33,13 @@ public sealed class GameRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TableTalk { get; set; }
 
+    /// <summary>
+    /// The saved position the game started from, for games that didn't start from a new board (null otherwise). Replaying
+    /// starts here instead of from an empty board; <see cref="Board"/> and <see cref="Settings"/> match it.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Position? Start { get; init; }
+
     public static string HashText(ulong hash) => hash.ToString("x16");
 
     // ---- JSON ----
@@ -69,12 +76,14 @@ public sealed class GameRecord
         GameState state;
         try
         {
-            state = new GameState(Core.Board.FromLayout(Board), Settings);
+            state = Start?.ToState() ?? new GameState(Core.Board.FromLayout(Board), Settings);
         }
         catch (ArgumentException ex)
         {
-            return new ReplayResult(null, log, 0, $"Bad board: {ex.Message}", null);
+            return new ReplayResult(null, log, 0, $"Bad {(Start is null ? "board" : "starting position")}: {ex.Message}", null);
         }
+        if (Start is not null)
+            log.Add(PositionStarted.Of(state, Start.HandsKnown));
 
         var chance = new ReplayChance(Chance);
         var events = new List<GameEvent>();

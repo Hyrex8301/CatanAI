@@ -39,6 +39,21 @@ public sealed class GameRunner
         _startedFresh = startedFresh;
     }
 
+    /// <summary>The saved position this game started from (null for a game started from a new board).</summary>
+    public Position? Start { get; private set; }
+
+    /// <summary>
+    /// A game that starts from a saved position: the log opens with <see cref="PositionStarted"/> (hand sizes, bank, and each
+    /// seat's own hand) so bots can track hands from there, and <see cref="ToRecord"/> stores the position, so the game saves
+    /// and replays like any other. Throws <see cref="ArgumentException"/> for a damaged position.
+    /// </summary>
+    public static GameRunner FromPosition(Position start, IReadOnlyList<IPlayerAgent> agents, IChance chance, bool validate = false)
+    {
+        var runner = new GameRunner(start.ToState(), agents, new RecordingChance(chance), validate, startedFresh: false) { Start = start };
+        runner.Log.Add(PositionStarted.Of(runner.State, start.HandsKnown));
+        return runner;
+    }
+
     /// <summary>
     /// Continues a saved game: replays the record (with its recorded outcomes) and returns a runner positioned right after it,
     /// with the same actions, log and outcome history, so <see cref="ToRecord"/> later covers the whole game.
@@ -49,8 +64,21 @@ public sealed class GameRunner
     {
         if (record.FormatVersion != GameRecord.CurrentFormatVersion)
             throw new ReplayException($"Unsupported record format {record.FormatVersion}.");
-        var state = new GameState(Board.FromLayout(record.Board), record.Settings);
-        var runner = new GameRunner(state, agents, new RecordingChance(continueWith, record.Chance), validate, startedFresh: true);
+        GameState state;
+        try
+        {
+            state = record.Start?.ToState() ?? new GameState(Board.FromLayout(record.Board), record.Settings);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ReplayException($"The saved starting position can't be used: {ex.Message}");
+        }
+        var runner = new GameRunner(state, agents, new RecordingChance(continueWith, record.Chance), validate, startedFresh: record.Start is null)
+        {
+            Start = record.Start,
+        };
+        if (record.Start is not null)
+            runner.Log.Add(PositionStarted.Of(state, record.Start.HandsKnown));
 
         var replay = new ReplayChance(record.Chance);
         for (int i = 0; i < record.Actions.Count; i++)
@@ -76,8 +104,8 @@ public sealed class GameRunner
     /// </summary>
     public GameRecord ToRecord(ulong? seed = null)
     {
-        if (!_startedFresh)
-            throw new InvalidOperationException("Only games started from a new GameState can be recorded.");
+        if (!_startedFresh && Start is null)
+            throw new InvalidOperationException("Only games started from a new GameState or a saved position can be recorded.");
         return new GameRecord
         {
             Seed = seed,
@@ -87,6 +115,7 @@ public sealed class GameRunner
             Actions = _actions.ToArray(),
             Chance = _chance.Log.ToArray(),
             FinalHash = GameRecord.HashText(State.ComputeHash()),
+            Start = Start,
         };
     }
 

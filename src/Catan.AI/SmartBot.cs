@@ -87,7 +87,7 @@ public sealed class SmartBot : IPlayerAgent
     {
         if (_tracker is null || _tracker.Viewer != view.Seat || view.Events.Count < _processedEvents)
             _tracker = new HandTracker(view.Seat);
-        _tracker.Update(view.Events);
+        _tracker.Update(view);
         _processedEvents = view.Events.Count;
         return _tracker;
     }

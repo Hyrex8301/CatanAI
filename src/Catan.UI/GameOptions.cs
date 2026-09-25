@@ -88,12 +88,18 @@ public sealed record GameSetup(ulong Seed, int HumanSeat, IReadOnlyList<SeatColo
     /// A random game seed that gives the human <paramref name="preferred"/> (any seed when null). Everything about a game
     /// still follows from its seed alone, so saved games load exactly as they were played.
     /// </summary>
-    public static ulong SeedFor(SeatColor? preferred, Func<ulong> random)
+    public static ulong SeedFor(SeatColor? preferred, Func<ulong> random) => SeedFor(preferred, null, random);
+
+    /// <summary>A random game seed giving the human <paramref name="preferred"/> (any when null) and seat <paramref name="seat"/> (any when null).</summary>
+    public static ulong SeedFor(SeatColor? preferred, int? seat, Func<ulong> random)
     {
         for (int attempt = 0; ; attempt++)
         {
             ulong seed = random();
-            if (preferred is not { } color || Create(seed).HumanColor == color || attempt >= 200)
+            var setup = Create(seed);
+            bool colourOk = preferred is not { } color || setup.HumanColor == color;
+            bool seatOk = seat is not { } s || setup.HumanSeat == s;
+            if ((colourOk && seatOk) || attempt >= 2000)
                 return seed;
         }
     }

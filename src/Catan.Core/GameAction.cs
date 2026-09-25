@@ -58,6 +58,24 @@ public sealed record MonopolyTaken(int Seat, int Victim, int Resource, int Count
 
 public sealed record BankTraded(int Seat, ResourceSet Gave, ResourceSet Got) : GameEvent;
 
+/// <summary>
+/// The first event of a game that starts from a saved position (it has no history): every hand's size, the bank, and the
+/// hands themselves, each seat seeing only its own unless <see cref="HandsKnown"/> (a scenario that shows every hand).
+/// Bots' hand trackers start from this.
+/// </summary>
+public sealed record PositionStarted(int[] HandSizes, int[] Bank, ResourceSet[] Hands, bool HandsKnown, bool InSetup) : GameEvent
+{
+    public override GameEvent RedactFor(int viewer) =>
+        HandsKnown ? this : this with { Hands = Hands.Select((hand, seat) => seat == viewer ? hand : default).ToArray() };
+
+    public static PositionStarted Of(GameState s, bool handsKnown) => new(
+        Enumerable.Range(0, GameConstants.PlayerCount).Select(s.HandSize).ToArray(),
+        (int[])s.Bank.Clone(),
+        Enumerable.Range(0, GameConstants.PlayerCount).Select(seat => ResourceSet.From(s.HandOf(seat))).ToArray(),
+        handsKnown,
+        s.Phase is Phase.SetupSettlement or Phase.SetupRoad);
+}
+
 /// <summary>The current player opens an offer in <see cref="Slot"/> to every opponent: it gives Give, wants Get.</summary>
 public sealed record TradeOffered(int Seat, int Slot, ResourceSet Give, ResourceSet Get) : GameEvent;
 

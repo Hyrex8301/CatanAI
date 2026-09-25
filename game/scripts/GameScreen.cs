@@ -108,6 +108,10 @@ public partial class GameScreen : Control
         _ = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_AUTOPLAY"), out _autoplayActions);
         var resume = GameSession.Resume;
         GameSession.Resume = null;
+        _start = GameSession.StartPosition;
+        GameSession.StartPosition = null;
+        if (_start is null && System.Environment.GetEnvironmentVariable("CATAN_START_POSITION") is { Length: > 0 } devPosition)
+            _start = Catan.Core.Position.FromJson(System.IO.File.ReadAllText(devPosition)); // developer screenshots
         _setup = GameSetup.Create(resume?.Seed ?? _options.Seed ?? NewSeed());
         _text = new GameText(_setup.Colors, _setup.HumanSeat);
         _human = new HumanAgent("You", TimeSpan.FromSeconds(_options.ResponseWindowSeconds));
@@ -145,7 +149,9 @@ public partial class GameScreen : Control
 
         // Right column: log, bank, the opponents in the order they play after you, then you.
         _log = new LogPanel(_rightLayer, LogRect, _setup.Colors, _setup.HumanSeat, _text);
-        _log.AddNote(resume is null
+        _log.AddNote(resume is null && _start is not null
+            ? $"Playing from a saved position{(_start.Title is { } title ? $": {title}" : "")}. You are {_setup.HumanColor}."
+            : resume is null
             ? $"Board seed {BoardSeed} (type it in Play → Normal game to get this board again). You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
         if (loadError is not null)
@@ -241,6 +247,7 @@ public partial class GameScreen : Control
         menu.AddItem("Game results", 2);
         menu.SetItemDisabled(2, true);
         menu.AddItem("How to play", 3);
+        menu.AddItem("Save position", 4);
         _menu = menu;
         menu.IdPressed += id =>
         {
@@ -250,8 +257,10 @@ public partial class GameScreen : Control
                 Leave();
             else if (id == 2)
                 ShowResults();
-            else
+            else if (id == 3)
                 _help.Open();
+            else
+                SavePosition();
         };
         AddChild(menu);
         var gear = new ActionTile { Position = new Vector2(8, 8), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => Gear(c, at, s) };
@@ -274,6 +283,8 @@ public partial class GameScreen : Control
 
         if (resume is not null)
             return GameRunner.Resume(resume, agents, new RngChance(_setup.ChanceSeed ^ (ulong)resume.Actions.Count * 0x9E3779B97F4A7C15UL));
+        if (_start is not null)
+            return GameRunner.FromPosition(_start, agents, new RngChance(_setup.ChanceSeed));
         var state = new GameState(BoardGenerator.Balanced(new Rng(BoardSeed)), _options.ToSettings());
         return new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
     }
@@ -313,8 +324,28 @@ public partial class GameScreen : Control
     /// <summary>The board: the one picked in the mode setup, or the game's own random one.</summary>
     private ulong BoardSeed => _options.BoardSeed ?? _setup.BoardSeed % 1_000_000; // short enough to type back in
 
-    /// <summary>A new game's seed: random, giving you your chosen colour if you picked one in Settings.</summary>
-    private ulong NewSeed() => GameSetup.SeedFor(_options.PreferredColor, () => (ulong)System.Random.Shared.NextInt64());
+    /// <summary>
+    /// A new game's seed: random, giving you your chosen colour if you picked one, and the position's seat when playing from
+    /// a saved position.
+    /// </summary>
+    private ulong NewSeed() => GameSetup.SeedFor(_options.PreferredColor, _start?.Seat, () => (ulong)System.Random.Shared.NextInt64());
+
+    /// <summary>The saved position this game starts from (Play → Position practice), or null.</summary>
+    private Catan.Core.Position? _start;
+
+    /// <summary>Saves where the game stands now as a position, to play from later (Play → Position practice).</summary>
+    private void SavePosition()
+    {
+        try
+        {
+            string path = GameSession.Positions.Save(Catan.Core.Position.From(_runner.State, _setup.HumanSeat), DateTime.Now);
+            _log.AddNote($"Position saved as {System.IO.Path.GetFileNameWithoutExtension(path)}. Play it from the menu: Play → Position practice.", Ui.Good);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            _log.AddNote($"Couldn't save the position: {ex.Message}", Ui.Bad);
+        }
+    }
 
     /// <summary>The table talk for this game: new, or the one saved with the game being continued.</summary>
     private TableTalk CreateTalk(GameRecord? resume)

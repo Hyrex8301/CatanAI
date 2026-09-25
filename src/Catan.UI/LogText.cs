@@ -91,6 +91,7 @@ public static class LogText
             : new(-1, new[] { LogPart.Of(a.Award == Award.LongestRoad ? "Longest Road is set aside" : "Largest Army is set aside") }),
         TurnEnded t => new(t.Seat, Array.Empty<LogPart>(), Divider: true),
         GameEnded g => g.Winner >= 0 ? new(g.Winner, new[] { Name(g.Winner), LogPart.Of(" won the game!") }) : new(-1, new[] { LogPart.Of("The game ended in a draw") }),
+        PositionStarted => new(-1, new[] { LogPart.Of("The game continues from a saved position") }),
         _ => new(-1, new[] { LogPart.Of(e.ToString()) }),
     };
 

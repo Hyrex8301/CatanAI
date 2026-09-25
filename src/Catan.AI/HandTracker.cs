@@ -61,6 +61,32 @@ public sealed class HandTracker
             Apply(log[_processed]);
     }
 
+    /// <summary>
+    /// Reads the view's new events. If the tracked worlds stop fitting what happens (possible after a game starts from a
+    /// saved position, whose hands are only sampled, or after very unlikely worlds were dropped to stay small), it starts
+    /// over from what the view shows now: hand sizes, the bank and our own hand, like a player re-reading the table.
+    /// </summary>
+    public void Update(PlayerView view)
+    {
+        try
+        {
+            Update(view.Events);
+        }
+        catch (InvalidOperationException)
+        {
+            Resyncs++;
+            var hands = new ResourceSet[GameConstants.PlayerCount];
+            hands[Viewer] = ResourceSet.From(view.Hand);
+            _freeRoads = 0;
+            StartFrom(new PositionStarted((int[])view.HandSizes.Clone(), (int[])view.Bank.Clone(), hands, false,
+                view.Phase is Phase.SetupSettlement or Phase.SetupRoad));
+            _processed = view.Events.Count;
+        }
+    }
+
+    /// <summary>How many times the tracker had to start over from the table (<see cref="Update(PlayerView)"/>).</summary>
+    public int Resyncs { get; private set; }
+
     /// <summary>Fewest of each resource <paramref name="seat"/> can hold.</summary>
     public ResourceSet Min(int seat) => Bound(seat, min: true);
 
@@ -133,6 +159,9 @@ public sealed class HandTracker
             case Discarded d:
                 Map(h => h.With(d.Seat, h[d.Seat] - d.Cards));
                 break;
+            case PositionStarted p:
+                StartFrom(p);
+                break;
             case BankTraded t:
                 Map(h => h.With(t.Seat, h[t.Seat] - t.Gave + t.Got));
                 break;
@@ -153,6 +182,51 @@ public sealed class HandTracker
                 break;
         }
     }
+
+    /// <summary>
+    /// A game that starts from a saved position: our own hand is known exactly; the others' cards are the ones not in the
+    /// bank or our hand, dealt out by hand size. Worlds come from many random deals (weighted by how often each comes up), so
+    /// it's as if we sat down at the table knowing only what everyone holds in total. A scenario may show every hand.
+    /// </summary>
+    private void StartFrom(PositionStarted p)
+    {
+        _setupOver = !p.InSetup;
+        var hands = new ResourceSet[GameConstants.PlayerCount];
+        if (p.HandsKnown)
+        {
+            Commit(new Dictionary<Hands, double> { [new Hands(p.Hands[0], p.Hands[1], p.Hands[2], p.Hands[3])] = 1 });
+            return;
+        }
+        var pool = new List<int>();
+        for (int r = 0; r < R; r++)
+            for (int k = 0; k < Costs.BankPerResource - p.Bank[r] - p.Hands[Viewer][r]; k++)
+                pool.Add(r);
+        var rng = new Rng((ulong)(Viewer + 17), stream: 5);
+        var next = new Dictionary<Hands, double>();
+        var cards = pool.ToArray();
+        for (int deal = 0; deal < StartDeals; deal++)
+        {
+            rng.Shuffle<int>(cards);
+            int at = 0;
+            for (int seat = 0; seat < GameConstants.PlayerCount; seat++)
+            {
+                if (seat == Viewer)
+                {
+                    hands[seat] = p.Hands[seat];
+                    continue;
+                }
+                var counts = new int[R];
+                for (int k = 0; k < p.HandSizes[seat] && at < cards.Length; k++)
+                    counts[cards[at++]]++;
+                hands[seat] = ResourceSet.From(counts);
+            }
+            Add(next, new Hands(hands[0], hands[1], hands[2], hands[3]), 1);
+        }
+        Commit(next);
+    }
+
+    /// <summary>Random deals used to start tracking from a saved position.</summary>
+    private const int StartDeals = 3000;
 
     /// <summary>Applies a deterministic change to every world, dropping worlds where someone would hold a negative count.</summary>
     private void Map(Func<Hands, Hands> change)
