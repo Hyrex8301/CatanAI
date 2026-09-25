@@ -227,19 +227,18 @@ public partial class GameScreen : Control
     }
 
     /// <summary>
-    /// A bot seat: SmartBot with the bundled weights. For trying the search bot before it's the default, CATAN_BOT=search
-    /// (optionally CATAN_THINK_MS) plays SearchBot with the bundled calibration on all but two threads.
+    /// A bot seat: SearchBot (the strongest bot) with the bundled weights and calibration, thinking on all but two threads
+    /// for CATAN_THINK_MS per decision (default 500: in Sim matches 2,000 playouts played as well as 16,000, and 0.5 s buys
+    /// several thousand; 50 ms in dev autoplay). CATAN_BOT=smart plays SmartBot instead.
     /// </summary>
     private IPlayerAgent CreateBot(int seat, int turnOffset)
     {
         ulong seed = _setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919;
-        if (System.Environment.GetEnvironmentVariable("CATAN_BOT") == "search")
-        {
-            int ms = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_THINK_MS"), out int t) ? t : 1000;
-            var calibration = WinModel.Load(ProjectSettings.GlobalizePath("res://bots/calibration.json"));
-            return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed);
-        }
-        return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed);
+        if (System.Environment.GetEnvironmentVariable("CATAN_BOT") == "smart")
+            return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed);
+        int ms = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_THINK_MS"), out int t) && t > 0 ? t : _autoplayActions > 0 && !ForceAnimate ? 50 : 500;
+        var calibration = WinModel.Load(ProjectSettings.GlobalizePath("res://bots/calibration.json"));
+        return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed);
     }
 
     private IPlayerAgent HumanSeatAgent() => _autoplayActions <= 0 ? _human
