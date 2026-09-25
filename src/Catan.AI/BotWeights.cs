@@ -27,6 +27,14 @@ public sealed class BotWeights
         // Cards still missing for a city, settlement or dev card (the full cost when it can't be built at all). 0 here, so
         // weight files from before these features behave exactly as they did.
         ["city_missing"] = 0, ["settlement_missing"] = 0, ["dev_missing"] = 0,
+        // Road ends that lead nowhere (no free spot there or one road further); leader threat (how much extra the opponent
+        // with the most points counts, from 5 points to one from winning) and help for the others (how much less they count).
+        ["dead_roads"] = 0, ["leader_threat"] = 0, ["last_help"] = 0,
+        // Holding a knight while blocked; our lead in points (0-5); extra weight on opponents going for the same award.
+        ["knight_blocked"] = 0, ["vp_lead"] = 0, ["rival"] = 0,
+        // Out of settlements (all 5 on the board; only a city frees one): a flag, ore + wheat production, and cards still
+        // missing for a city, each only while stuck. Opponents who are stuck are worth blocking and not feeding ore or wheat.
+        ["settles_stuck"] = 0, ["stuck_city_combo"] = 0, ["stuck_city_missing"] = 0,
     };
 
     /// <summary>
@@ -42,6 +50,9 @@ public sealed class BotWeights
         "settle_spots", "best_spot_pips", "road_length", "longest_road_gap", "knights", "army_gap",
         "dev_cards", "robber_blocked", "opp_max", "opp_mean",
         "city_missing", "settlement_missing", "dev_missing",
+        "dead_roads", "leader_threat", "last_help",
+        "knight_blocked", "vp_lead", "rival",
+        "settles_stuck", "stuck_city_combo", "stuck_city_missing",
     };
 
     private readonly double[] _values;

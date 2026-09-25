@@ -342,6 +342,22 @@ public sealed class SearchBot : IPlayerAgent
     public SearchSettings Settings { get; }
     public Evaluator Evaluator { get; }
 
+    /// <summary>The table's promises, when the game has table talk: moves that break ours are avoided unless worth a lot.</summary>
+    public Talk.DealBook? Deals
+    {
+        get => _smart.Deals;
+        set => _smart.Deals = value;
+    }
+
+    private int _lastDealTurn = -1;
+
+    /// <summary>The game's table talk, if it has one: the bot makes and answers deals there and keeps its promises.</summary>
+    public Talk.TableTalk? Table
+    {
+        get => _smart.Table;
+        set => _smart.Table = value;
+    }
+
     /// <summary>Iterations the last searched decision ran (all threads together).</summary>
     public int LastIterations { get; private set; }
 
@@ -365,6 +381,10 @@ public sealed class SearchBot : IPlayerAgent
         var tracker = Track(view);
         if (view.Phase == Phase.Discard)
             return _smart.DecideAsync(view, legal, ct).Result;
+        if (Trading.SettleOpenTrades(view, tracker, Evaluator, legal, _rng, Table) is { } settle)
+            return settle;
+        if (Table is not null && Talk.DealMaker.Act(view, tracker, Evaluator, Table, _rng, ref _lastDealTurn) is { } dealMove)
+            return dealMove;
         if (Trading.ProposeOffer(view, tracker, Evaluator, _rng) is { } offer)
             return offer;
         if (legal.Count == 1)
@@ -384,6 +404,13 @@ public sealed class SearchBot : IPlayerAgent
             _rootPlanner.ScoreActions(Determinizer.Build(view, tracker, _rng), view.Seat, legal, scores);
         var moves = Enumerable.Range(0, legal.Count).OrderByDescending(i => scores[i]).ThenBy(i => i)
             .Take(Settings.RootMoves).Select(i => legal[i]).ToList();
+        // A move that breaks one of our promises is searched only if it is the planner's choice even after the penalty.
+        if (Talk.PromiseKeeping.Penalize(Deals, view, legal, scores, Settings.RootSamples, Evaluator.Weights["vp"]))
+        {
+            var best = Enumerable.Range(0, legal.Count).OrderByDescending(i => scores[i]).ThenBy(i => i).First();
+            moves = Enumerable.Range(0, legal.Count).OrderByDescending(i => scores[i]).ThenBy(i => i)
+                .Where(i => i == best || Deals!.WouldBreak(view, legal[i]) is null).Take(Settings.RootMoves).Select(i => legal[i]).ToList();
+        }
         foreach (var a in legal)
             if (a.Type == ActionType.EndTurn && !moves.Contains(a))
                 moves.Add(a);

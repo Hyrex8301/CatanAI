@@ -28,6 +28,7 @@ public static class Trading
             if (o.IsActive && !o.IsCounter)
                 return null; // one at a time: let answers come in first
 
+        var offeredThisTurn = OffersThisTurn(view);
         var state = Determinizer.Build(view, tracker, rng);
         double now = eval.Score(state, me);
         double bestGain = MinGain;
@@ -43,6 +44,8 @@ public static class Trading
                         continue;
                     var gives = ResourceSet.Of((Resource)give, count);
                     var gets = ResourceSet.Of((Resource)get);
+                    if (offeredThisTurn.Contains((gives, gets)))
+                        continue; // already asked this turn: the answer won't change
                     double gain = ScoreWithHand(state, me, gives, gets, eval) - now;
                     if (gain > bestGain)
                         (bestGain, best) = (gain, new GameAction(ActionType.OfferTrade, me, Give: gives, Get: gets));
@@ -55,12 +58,15 @@ public static class Trading
     /// Answers open offers from the current player: accepts the one that helps us most (net of helping them), if any helps
     /// enough; otherwise declines the first one it hasn't answered. Null when there's nothing to answer.
     /// </summary>
-    public static GameAction? Answer(PlayerView view, HandTracker tracker, Evaluator eval, IReadOnlyList<GameAction> legal, Rng rng)
+    public static GameAction? Answer(PlayerView view, HandTracker tracker, Evaluator eval, IReadOnlyList<GameAction> legal, Rng rng,
+        Talk.TableTalk? talk = null)
     {
         int me = view.Seat;
         GameState? state = null;
         double now = 0, bestGain = MinGain;
         GameAction? accept = null, decline = null;
+        bool acceptIsDeal = false;
+        Talk.DealTerms? declinedDeal = null;
 
         foreach (var a in legal)
         {
@@ -74,10 +80,109 @@ public static class Trading
                 now = eval.Score(state, me);
             // Accepting: we give what they ask for (offer.Get) and receive what they give (offer.Give).
             double gain = ScoreAfterSwap(state, me, offer.From, offer.Get, offer.Give, eval) - now;
+            // Promises riding on the offer (table talk): theirs to us are worth what they prevent, ours cost what we give up.
+            var deal = talk?.DealOn(a.Target);
+            if (deal is not null)
+            {
+                if (deal.Partner >= 0 && deal.Partner != me)
+                    continue; // a deal meant for someone else
+                gain += Talk.DealMaker.Value(state, eval, talk!, offer.From, me, deal.CurrentPromises)
+                        - Talk.DealMaker.Cost(state, eval, talk!, me, offer.From, deal.PartnerPromises);
+                declinedDeal ??= deal;
+            }
             if (gain > bestGain)
-                (bestGain, accept) = (gain, a);
+                (bestGain, accept, acceptIsDeal) = (gain, a, deal is not null);
         }
+        if (talk is not null && (acceptIsDeal || (accept is null && declinedDeal is not null)))
+            talk.Say(me, acceptIsDeal ? "deal" : "no thanks", view.TurnNumber);
         return accept ?? decline;
+    }
+
+    /// <summary>
+    /// On our Main turn, settles trades already on the table before anything else: a counter made to us is accepted if it
+    /// helps enough and declined otherwise; our offer that someone accepted is confirmed with the partner it helps most (or
+    /// cancelled if the trade no longer helps); our offer nobody accepted is withdrawn. Every answer round has finished by
+    /// the time we're asked (the runner waits for the answers), so nothing we leave open would change. Null when there's
+    /// nothing to settle.
+    /// </summary>
+    public static GameAction? SettleOpenTrades(PlayerView view, HandTracker tracker, Evaluator eval, IReadOnlyList<GameAction> legal, Rng rng,
+        Talk.TableTalk? talk = null)
+    {
+        int me = view.Seat;
+        if (view.Phase != Phase.Main || view.CurrentPlayer != me)
+            return null;
+        GameState? state = null;
+        double now = 0;
+        double Gain(int partner, ResourceSet myGive, ResourceSet myGet)
+        {
+            if (state is null)
+            {
+                state = Determinizer.Build(view, tracker, rng);
+                now = eval.Score(state, me);
+            }
+            return ScoreAfterSwap(state, me, partner, myGive, myGet, eval) - now;
+        }
+
+        for (int slot = 0; slot < view.Offers.Length; slot++)
+        {
+            var o = view.Offers[slot];
+            if (!o.IsActive || !o.IsCounter)
+                continue;
+            // A counter: they give o.Give and ask for o.Get.
+            var accept = new GameAction(ActionType.AcceptOffer, me, slot);
+            if (legal.Contains(accept) && Gain(o.From, o.Get, o.Give) > MinGain)
+                return accept;
+            return new GameAction(ActionType.DeclineOffer, me, slot);
+        }
+
+        for (int slot = 0; slot < view.Offers.Length; slot++)
+        {
+            var o = view.Offers[slot];
+            if (!o.IsActive || o.IsCounter || o.From != me)
+                continue;
+            var deal = talk?.DealOn(slot);
+            GameAction? best = null;
+            // A deal we proposed is seen through unless it has clearly turned bad (a fresh sample of hidden cards moves
+            // the numbers a little, and backing out after they said "deal" would be rude).
+            double bestGain = deal is not null ? -MinGain : 0;
+            for (int partner = 0; partner < GameConstants.PlayerCount; partner++)
+            {
+                var confirm = new GameAction(ActionType.ConfirmTrade, me, slot, partner);
+                if (o.ResponseOf(partner) != TradeOffer.Accepted || !legal.Contains(confirm))
+                    continue;
+                if (deal is not null && deal.Partner >= 0 && deal.Partner != partner)
+                    continue; // the deal was with someone else
+                double gain = Gain(partner, o.Give, o.Get);
+                if (deal is not null)
+                    gain += Talk.DealMaker.Value(state!, eval, talk!, partner, me, deal.PartnerPromises)
+                            - Talk.DealMaker.Cost(state!, eval, talk!, me, partner, deal.CurrentPromises);
+                if (gain > bestGain)
+                    (bestGain, best) = (gain, confirm);
+            }
+            return best ?? new GameAction(ActionType.CancelOffer, me, slot);
+        }
+        return null;
+    }
+
+    /// <summary>The (give, get) of every offer and edit we made this turn, from the log.</summary>
+    private static HashSet<(ResourceSet Give, ResourceSet Get)> OffersThisTurn(PlayerView view)
+    {
+        var seen = new HashSet<(ResourceSet, ResourceSet)>();
+        for (int i = view.Events.Count - 1; i >= 0; i--)
+        {
+            switch (view.Events[i])
+            {
+                case TurnEnded:
+                    return seen;
+                case TradeOffered o when o.Seat == view.Seat:
+                    seen.Add((o.Give, o.Get));
+                    break;
+                case TradeEdited e when e.Seat == view.Seat:
+                    seen.Add((e.Give, e.Get));
+                    break;
+            }
+        }
+        return seen;
     }
 
     private static double ScoreWithHand(GameState s, int me, ResourceSet gives, ResourceSet gets, Evaluator eval)
@@ -88,16 +193,41 @@ public static class Trading
         return score;
     }
 
-    private static double ScoreAfterSwap(GameState s, int me, int partner, ResourceSet myGive, ResourceSet myGet, Evaluator eval)
+    /// <summary>
+    /// Our score after giving <paramref name="myGive"/> for <paramref name="myGet"/>. Only called for cards the partner has
+    /// shown they hold (they offered, countered or accepted) or that their sampled hand holds, so a sample that lacks them is
+    /// corrected first (<see cref="ShowCards"/>). MinValue if we can't pay.
+    /// </summary>
+    internal static double ScoreAfterSwap(GameState s, int me, int partner, ResourceSet myGive, ResourceSet myGet, Evaluator eval)
     {
-        if (!myGive.FitsIn(s.HandOf(me)) || !myGet.FitsIn(s.HandOf(partner)))
-            return double.MinValue; // not possible in this sample of hidden cards
+        if (!myGive.FitsIn(s.HandOf(me)))
+            return double.MinValue;
+        ShowCards(s, partner, myGet);
         Adjust(s, me, myGet - myGive);
         Adjust(s, partner, myGive - myGet);
         double score = eval.Score(s, me);
         Adjust(s, me, myGive - myGet);
         Adjust(s, partner, myGet - myGive);
         return score;
+    }
+
+    /// <summary>
+    /// Makes a sampled hand hold <paramref name="cards"/>, which the player has shown they have: each missing card replaces
+    /// one of the resource they hold most of (the hand size is public and stays the same).
+    /// </summary>
+    internal static void ShowCards(GameState s, int seat, ResourceSet cards)
+    {
+        for (int r = 0; r < R; r++)
+            while (s.Hand[seat * R + r] < cards[r])
+            {
+                int most = -1;
+                for (int x = 0; x < R; x++)
+                    if (s.Hand[seat * R + x] > cards[x] && (most < 0 || s.Hand[seat * R + x] > s.Hand[seat * R + most]))
+                        most = x;
+                if (most >= 0)
+                    s.Hand[seat * R + most]--;
+                s.Hand[seat * R + r]++;
+            }
     }
 
     private static void Adjust(GameState s, int seat, ResourceSet delta)

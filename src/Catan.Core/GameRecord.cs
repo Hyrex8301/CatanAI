@@ -26,6 +26,13 @@ public sealed class GameRecord
     /// <summary><see cref="GameState.ComputeHash"/> after the last action, as 16 lowercase hex digits.</summary>
     public string? FinalHash { get; init; }
 
+    /// <summary>
+    /// The game's table talk (chat and deals) as the game screen saved it, if any. Replay doesn't use it: talk never changes
+    /// the rules, only what players chose, and their choices are the recorded actions.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TableTalk { get; set; }
+
     public static string HashText(ulong hash) => hash.ToString("x16");
 
     // ---- JSON ----

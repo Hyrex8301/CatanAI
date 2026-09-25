@@ -15,7 +15,7 @@ static class Sim
     {
         if (args.Length == 0)
             return Usage();
-        var options = Options.Parse(args.Skip(1));
+        var options = args[0] == "talk" ? null! : Options.Parse(args.Skip(1));
         try
         {
             return args[0] switch
@@ -28,6 +28,7 @@ static class Sim
                 "calibrate" => Calibrate(options),
                 "think" => Think(options),
                 "train" => Train(options),
+                "talk" => Talk(args.Skip(1)),
                 _ => Usage(),
             };
         }
@@ -47,12 +48,13 @@ static class Sim
                                                                            failures go to --out, --save keeps every record
               replay --file PATH                                           re-run a saved game and report the first problem
               bench --seconds N [--seed S] [--pure]                        games/s and actions/s without validation
-              match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate]
+              match --a BOT --b BOT [--games N] [--seed S] [--layout 1v3|2v2] [--threads T] [--validate] [--deals all|a]
                                                                            A vs B with rotated seats; A's win rate and 95% CI
                     BOT: random | smart | smart-fast | path/to/weights.json (smart-fast: training settings)
               ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
               calibrate [--weights W.json] [--games N] [--out F.json]      fit evaluation values to win chances from self-play
               think [--weights W.json] [--ms M] [--positions N]            search iterations a thinking time buys (all threads)
+              talk "wheat nb?" ["don't block me" ...]                 how the chat reads each line (you are blue, talking to orange)
               train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
                                                                            self-play training; resumes if DIR has a checkpoint;
                                                                            Ctrl+C stops after the current generation
@@ -146,6 +148,8 @@ static class Sim
         ulong baseSeed = o.ULong("seed", 1);
         bool twoVsTwo = o.String("layout", "1v3") == "2v2";
         bool validate = o.Flag("validate");
+        string? deals = o.Flag("deals") ? o.String("deals", "all") : null;
+        long dealsMade = 0, promisesBroken = 0;
         int threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2));
 
         var results = new (int WinnerIsA, int Winner, int Turns, int Actions)[games];
@@ -162,7 +166,29 @@ static class Sim
                 .Select(seat => Bots.Create(isA[seat] ? a : b, Mix(seed, (ulong)seat + 11)))
                 .ToArray();
             var runner = new GameRunner(new GameState(BoardGenerator.Balanced(new Rng(seed))), agents, new RngChance(Mix(seed, 99)), validate);
+            Catan.AI.Talk.TableTalk? talk = null;
+            if (deals is not null)
+            {
+                talk = new Catan.AI.Talk.TableTalk(new[] { "red", "blue", "orange", "white" });
+                for (int seat = 0; seat < agents.Length; seat++)
+                {
+                    bool talks = deals == "all" || isA[seat];
+                    if (agents[seat] is SmartBot smart)
+                    {
+                        smart.Table = talks ? talk : null;
+                        smart.Deals = talks ? null : talk.Deals;
+                    }
+                    else if (agents[seat] is SearchBot search)
+                    {
+                        search.Table = talks ? talk : null;
+                        search.Deals = talks ? null : talk.Deals;
+                    }
+                }
+                runner.ActionApplied += (action, _) => Interlocked.Add(ref promisesBroken, talk!.OnAction(runner.State, action).Count);
+            }
             runner.RunAsync().GetAwaiter().GetResult();
+            if (talk is not null)
+                Interlocked.Add(ref dealsMade, talk.Lines.Count(l => l.Seat < 0 && l.Text.StartsWith("Deal:")));
             int winner = runner.State.Winner;
             results[i] = (winner >= 0 && isA[winner] ? 1 : 0, winner, runner.State.TurnNumber, runner.Actions.Count);
             int n = Interlocked.Increment(ref done);
@@ -179,6 +205,8 @@ static class Sim
         Console.WriteLine($"{a} vs {b} ({(twoVsTwo ? "2v2" : "1v3")}): {games} games, {games / sw.Elapsed.TotalSeconds:F1} games/s, " +
                           $"avg turns {results.Average(r => r.Turns):F0}, draws {games - decided}");
         Console.WriteLine($"{a} wins {100 * p:F1}% ± {100 * ci:F1}% (equal strength would be {100 * fair:F0}%)");
+        if (deals is not null)
+            Console.WriteLine($"table talk ({deals}): {dealsMade} deals ({(double)dealsMade / games:F2} per game), {promisesBroken} promises broken");
         return 0;
     }
 
@@ -280,6 +308,27 @@ static class Sim
             }
         }
         Console.WriteLine($"{ms} ms on {threads} threads: {counts.Average():N0} iterations per decision on average ({counts.Average() / threads:N0} per thread)");
+        return 0;
+    }
+
+    // ---- talk ----
+
+    /// <summary>
+    /// Reads each argument as a chat line said by blue to orange on the board of game seed 1, and prints what it understood.
+    /// Lists a few of that board's spots first, so there are real numbers to try.
+    /// </summary>
+    private static int Talk(IEnumerable<string> lines)
+    {
+        string[] names = { "red", "blue", "orange", "white" };
+        var board = BoardGenerator.Balanced(new Rng(1));
+        var spots = Enumerable.Range(0, Topology.VertexCount).Select(v => Catan.AI.Talk.Spots.Name(board, v))
+            .Where(n => n.Split(' ').Length == 3 && Catan.AI.Talk.Spots.Find(board, n.Split(' ').Select(int.Parse).ToList()).Count == 1).Distinct().Take(8);
+        Console.WriteLine($"Some spots on this board: {string.Join(", ", spots)}");
+        foreach (string line in lines)
+        {
+            var reading = Catan.AI.Talk.PhraseReader.Read(line, 1, names, 2, board);
+            Console.WriteLine($"{line,-45} -> {reading.Describe(names, 1, board)}");
+        }
         return 0;
     }
 

@@ -51,6 +51,19 @@ public sealed class SmartBot : IPlayerAgent
     public SmartBotSettings Settings { get; }
     public Evaluator Evaluator { get; }
 
+    /// <summary>The table's promises, when the game has table talk: moves that break ours are avoided unless worth a lot.</summary>
+    public Talk.DealBook? Deals
+    {
+        get => _deals ?? Table?.Deals;
+        set => _deals = value;
+    }
+
+    private Talk.DealBook? _deals;
+    private int _lastDealTurn = -1;
+
+    /// <summary>The game's table talk, if it has one: the bot makes and answers deals there and keeps its promises.</summary>
+    public Talk.TableTalk? Table { get; set; }
+
     public Task<GameAction> DecideAsync(PlayerView view, IReadOnlyList<GameAction> legal, CancellationToken ct) =>
         Task.FromResult(Decide(view, legal));
 
@@ -73,6 +86,10 @@ public sealed class SmartBot : IPlayerAgent
         var tracker = Track(view);
         if (view.Phase == Phase.Discard)
             return Discard(view, tracker);
+        if (Settings.Trades && Trading.SettleOpenTrades(view, tracker, Evaluator, legal, _rng, Table) is { } settle)
+            return settle;
+        if (Settings.Trades && Table is not null && Talk.DealMaker.Act(view, tracker, Evaluator, Table, _rng, ref _lastDealTurn) is { } dealMove)
+            return dealMove;
         if (Settings.Trades && Trading.ProposeOffer(view, tracker, Evaluator, _rng) is { } offer)
             return offer;
         if (legal.Count == 1)
@@ -84,6 +101,7 @@ public sealed class SmartBot : IPlayerAgent
             var state = Determinizer.Build(view, tracker, _rng);
             _planner.ScoreActions(state, view.Seat, legal, scores);
         }
+        Talk.PromiseKeeping.Penalize(Deals, view, legal, scores, Settings.Samples, Evaluator.Weights["vp"]);
         return legal[Choose(scores)];
     }
 
@@ -92,7 +110,7 @@ public sealed class SmartBot : IPlayerAgent
         if (!Settings.Trades)
             return null;
         var tracker = Track(view);
-        return Trading.Answer(view, tracker, Evaluator, legal, _rng);
+        return Trading.Answer(view, tracker, Evaluator, legal, _rng, Table);
     }
 
     /// <summary>Best move, or with a temperature a softmax pick among the scores.</summary>

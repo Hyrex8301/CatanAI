@@ -25,13 +25,23 @@ public sealed class Evaluator
 
     private static readonly int FCityMissing = I("city_missing"), FSettlementMissing = I("settlement_missing"), FDevMissing = I("dev_missing");
 
+    private static readonly int FDeadRoads = I("dead_roads"), FLeaderThreat = I("leader_threat"), FLastHelp = I("last_help");
+
+    private static readonly int FKnightBlocked = I("knight_blocked"), FVpLead = I("vp_lead"), FRival = I("rival");
+
+    private static readonly int FStuck = I("settles_stuck"), FStuckCityCombo = I("stuck_city_combo"), FStuckCityMissing = I("stuck_city_missing");
+
+    /// <summary>Points at which the leader threat starts to count (it is full one point from winning).</summary>
+    private const int ThreatStartVp = 5;
+
     private static int I(string name) => BotWeights.IndexOf(name);
 
     private static readonly int FeatureCount = BotWeights.Names.Count;
 
     // Topology tables flattened to [vertex * 3 + i]: two-dimensional arrays are slow to index in this hot loop.
     private static readonly int[] VertexHexes = Flatten(Topology.VertexHexes), VertexEdges = Flatten(Topology.VertexEdges),
-        VertexNeighbors = Flatten(Topology.VertexNeighbors);
+        VertexNeighbors = Flatten(Topology.VertexNeighbors),
+        EdgeVertices = Flatten(Topology.EdgeVertices);
 
     private static int[] Flatten(int[,] table) => table.Cast<int>().ToArray();
 
@@ -55,7 +65,30 @@ public sealed class Evaluator
             best = Math.Max(best, value[seat]);
             sum += value[seat];
         }
-        return value[me] - Weights[FOppMax] * best - Weights[FOppMean] * sum / (Seats - 1);
+        double score = value[me] - Weights[FOppMax] * best - Weights[FOppMean] * sum / (Seats - 1);
+
+        // Leader threat: from 5 points on, the opponent with the most points counts extra against us (fully at one point
+        // from winning), and the others count less, so slowing the leader and helping whoever is behind both pay.
+        int leader = -1, leaderVp = 0;
+        for (int seat = 0; seat < Seats; seat++)
+        {
+            int vp = s.TotalVP(seat);
+            if (seat != me && (leader < 0 || vp > leaderVp || (vp == leaderVp && value[seat] > value[leader])))
+                (leader, leaderVp) = (seat, vp);
+        }
+        double t = Math.Clamp((leaderVp - ThreatStartVp) / (double)Math.Max(1, s.Settings.VpToWin - 1 - ThreatStartVp), 0, 1);
+        if (t > 0)
+            score += -Weights[FLeaderThreat] * t * value[leader] + Weights[FOppMean] * Weights[FLastHelp] * t * (sum - value[leader]) / (Seats - 1);
+
+        // Rivals: opponents going for the same award as us (both into dev cards and knights, or both building long roads)
+        // count extra, so blocking and robbing them pays more.
+        double rivals = 0;
+        for (int seat = 0; seat < Seats; seat++)
+            if (seat != me)
+                rivals += Rivalry(s, me, seat) * value[seat];
+        if (rivals != 0)
+            score -= Weights[FRival] * rivals / (Seats - 1);
+        return score;
     }
 
     /// <summary>Every seat's weighted feature total.</summary>
@@ -150,6 +183,21 @@ public sealed class Evaluator
                 AddSpot(spots, bestSpot, o2, pips);
         }
 
+        // Dead roads: road ends (no building or other road of ours there) with no free spot at the end or one road further.
+        Span<int> dead = stackalloc int[Seats];
+        for (int e = 0; e < Topology.EdgeCount; e++)
+        {
+            int owner = edgeOwner[e];
+            if (owner < 0)
+                continue;
+            for (int end = 0; end < 2; end++)
+            {
+                int v = EdgeVertices[e * 2 + end];
+                if (IsRoadEnd(s, v, e, owner) && !LeadsSomewhere(s, v, e))
+                    dead[owner]++;
+            }
+        }
+
         int maxRoad = 0, maxKnights = 0;
         for (int seat = 0; seat < Seats; seat++)
         {
@@ -193,6 +241,20 @@ public sealed class Evaluator
             row[FCityMissing] = s.CitiesLeft[seat] > 0 && s.SettlementsLeft[seat] < Costs.SettlementsPerPlayer ? Missing(Costs.City, hand) : Costs.City.Total;
             row[FSettlementMissing] = s.SettlementsLeft[seat] > 0 && spots[seat] > 0 ? Missing(Costs.Settlement, hand) : Costs.Settlement.Total;
             row[FDevMissing] = DevDeckSize(s) > 0 ? Missing(Costs.DevCard, hand) : Costs.DevCard.Total;
+            row[FDeadRoads] = dead[seat];
+            // Holding a knight while the robber sits on one of our tiles (playing it would free the tile).
+            row[FKnightBlocked] = blocked[seat] > 0 && s.DevHand[seat * D + (int)DevCardType.Knight] > 0 ? 1 : 0;
+            // How far ahead of everyone we are (a big lead makes us the target).
+            int otherVp = 0;
+            for (int other = 0; other < Seats; other++)
+                if (other != seat)
+                    otherVp = Math.Max(otherVp, s.TotalVP(other));
+            row[FVpLead] = Math.Clamp(s.TotalVP(seat) - otherVp, 0, 5);
+            // Out of settlements: every one is on the board, so growing takes a city first.
+            bool stuck = s.SettlementsLeft[seat] == 0 && s.CitiesLeft[seat] > 0;
+            row[FStuck] = stuck ? 1 : 0;
+            row[FStuckCityCombo] = stuck ? row[FCityCombo] : 0;
+            row[FStuckCityMissing] = stuck ? row[FCityMissing] : 0;
             row[FSpots] = Math.Min(spots[seat], 6);
             row[FBestSpot] = bestSpot[seat];
             row[FRoad] = s.RoadLength[seat];
@@ -206,6 +268,70 @@ public sealed class Evaluator
             row[FDev] = dev;
             row[FBlocked] = blocked[seat] / 36.0;
         }
+    }
+
+    /// <summary>How many awards two seats are both going for: Largest Army (both have 2+ knights played or dev cards held)
+    /// and Longest Road (both have a road of 4+).</summary>
+    private static int Rivalry(GameState s, int a, int b)
+    {
+        int rivalry = 0;
+        if (ArmyInterest(s, a) >= 2 && ArmyInterest(s, b) >= 2)
+            rivalry++;
+        if (s.RoadLength[a] >= 4 && s.RoadLength[b] >= 4)
+            rivalry++;
+        return rivalry;
+    }
+
+    private static int ArmyInterest(GameState s, int seat)
+    {
+        int cards = s.KnightsPlayed[seat];
+        for (int t = 0; t < D; t++)
+            cards += s.DevHand[seat * D + t];
+        return cards;
+    }
+
+    /// <summary>True if <paramref name="v"/> is where <paramref name="seat"/>'s road <paramref name="edge"/> stops: no building or other road of theirs.</summary>
+    private static bool IsRoadEnd(GameState s, int v, int edge, int seat)
+    {
+        if (s.VertexOwner[v] == seat)
+            return false;
+        for (int i = 0; i < 3; i++)
+        {
+            int e = VertexEdges[v * 3 + i];
+            if (e >= 0 && e != edge && s.EdgeOwner[e] == seat)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>A road end at <paramref name="v"/> still leads somewhere: a free spot there, or one more free road away.</summary>
+    private static bool LeadsSomewhere(GameState s, int v, int edge)
+    {
+        if (s.VertexOwner[v] >= 0)
+            return false; // someone else's building blocks the way
+        if (IsFreeSpot(s, v))
+            return true;
+        for (int i = 0; i < 3; i++)
+        {
+            int e = VertexEdges[v * 3 + i], u = VertexNeighbors[v * 3 + i];
+            if (e >= 0 && e != edge && s.EdgeOwner[e] < 0 && u >= 0 && IsFreeSpot(s, u))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Empty, and no building next to it (the distance rule).</summary>
+    private static bool IsFreeSpot(GameState s, int v)
+    {
+        if (s.VertexOwner[v] >= 0)
+            return false;
+        for (int i = 0; i < 3; i++)
+        {
+            int nb = VertexNeighbors[v * 3 + i];
+            if (nb >= 0 && s.VertexOwner[nb] >= 0)
+                return false;
+        }
+        return true;
     }
 
     private static int Missing(ResourceSet cost, ReadOnlySpan<int> hand)

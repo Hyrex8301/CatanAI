@@ -16,13 +16,13 @@ public class SearchBotTests
             new RngChance(seed));
         for (int i = 0; i < steps && !runner.IsOver; i++)
             runner.StepAsync().GetAwaiter().GetResult();
-        // Move on until the acting seat has a real choice outside the discard phase.
+        // Move on until the acting seat has a real choice outside the discard phase, with no trades waiting to be settled.
         var legal = new List<GameAction>();
         while (true)
         {
             int seat = Rules.ActingSeat(runner.State);
             Rules.GetLegalActions(runner.State, seat, legal);
-            if (runner.State.Phase != Phase.Discard && legal.Count > 2)
+            if (runner.State.Phase != Phase.Discard && legal.Count > 2 && !runner.State.Offers.Any(o => o.IsActive))
                 return (runner, PlayerView.From(runner.State, seat, runner.Log), legal);
             runner.StepAsync().GetAwaiter().GetResult();
         }
@@ -93,12 +93,19 @@ public class SearchBotTests
     [Fact]
     public void ATimedDecisionRespectsItsBudgetAndSearchesOnEveryThread()
     {
-        var (_, view, legal) = MidGame(11, 90);
-        var bot = new SearchBot(new BotWeights(), WinModel.Default, new SearchSettings { ThinkMs = 300, Threads = 3 }, 5);
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        bot.Decide(view, legal);
-        sw.Stop();
-        Assert.InRange(sw.ElapsedMilliseconds, 250, 1500); // the planner's root pass and the last iterations add a little
-        Assert.True(bot.LastIterations >= 3, $"only {bot.LastIterations} iterations");
+        // The first position (from move 90 on) where the bot searches rather than trading or having one real move.
+        for (int steps = 90; ; steps += 7)
+        {
+            var (_, view, legal) = MidGame(11, steps);
+            var bot = new SearchBot(new BotWeights(), WinModel.Default, new SearchSettings { ThinkMs = 300, Threads = 3 }, 5);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            bot.Decide(view, legal);
+            sw.Stop();
+            if (bot.LastIterations == 0)
+                continue;
+            Assert.InRange(sw.ElapsedMilliseconds, 250, 1500); // the planner's root pass and the last iterations add a little
+            Assert.True(bot.LastIterations >= 3, $"only {bot.LastIterations} iterations");
+            return;
+        }
     }
 }

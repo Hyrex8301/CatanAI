@@ -76,6 +76,88 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void ARoadIntoSomeoneElsesBuildingIsDead()
+    {
+        // Seat 0: settlement at the center's N and roads N -> NE -> SE. Open, SE is a free spot: not dead.
+        var open = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N))
+            .Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E))
+            .Build();
+        Assert.Equal(0, F(open, 0, "dead_roads"));
+
+        // Seat 1 builds right where the road ends: nowhere left to go.
+        var blocked = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N))
+            .Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E))
+            .Settlement(1, Vertex(0, 0, Corner.SE))
+            .Build();
+        Assert.Equal(1, F(blocked, 0, "dead_roads"));
+    }
+
+    [Fact]
+    public void TheLeaderCountsExtraOnlyFromFivePoints()
+    {
+        var calm = new BotWeights();
+        var wary = BotWeights.FromJson("""{ "leader_threat": 1, "last_help": 0.5 }""");
+        var s = new StateBuilder(TestBoards.Standard).Settlement(1, Vertex(0, -2, Corner.N)).Settlement(2, Vertex(0, 0, Corner.N)).Build();
+
+        s.PublicVP[1] = 5;
+        Assert.Equal(new Evaluator(calm).Score(s, 0), new Evaluator(wary).Score(s, 0));
+
+        s.PublicVP[1] = 8;
+        Assert.True(new Evaluator(wary).Score(s, 0) < new Evaluator(calm).Score(s, 0));
+    }
+
+    [Fact]
+    public void HoldingAKnightWhileBlockedAndLeadingInPoints()
+    {
+        var s = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, -2, Corner.N))
+            .DevCards(0, knight: 1)
+            .Robber(0)
+            .Build();
+        Assert.Equal(1, F(s, 0, "knight_blocked"));
+        Assert.Equal(0, F(new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, -2, Corner.N)).DevCards(0, knight: 1).Build(), 0, "knight_blocked"));
+
+        s.PublicVP[0] = 6;
+        s.PublicVP[1] = 3;
+        Assert.Equal(3, F(s, 0, "vp_lead"));
+        Assert.Equal(0, F(s, 1, "vp_lead"));
+    }
+
+    [Fact]
+    public void OutOfSettlementsCountsOnlyWhileStuck()
+    {
+        var s = new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, -2, Corner.N)).Hand(0, grain: 1).Build();
+        Assert.Equal(0, F(s, 0, "settles_stuck"));
+        Assert.Equal(0, F(s, 0, "stuck_city_missing"));
+
+        s.SettlementsLeft[0] = 0; // all five on the board
+        Assert.Equal(1, F(s, 0, "settles_stuck"));
+        Assert.Equal(F(s, 0, "city_missing"), F(s, 0, "stuck_city_missing"));
+        Assert.Equal(4, F(s, 0, "stuck_city_missing")); // 1 wheat + 3 ore
+        Assert.Equal(F(s, 0, "city_combo"), F(s, 0, "stuck_city_combo"));
+    }
+
+    [Fact]
+    public void RivalsForTheSameAwardCountExtra()
+    {
+        var rivalWeights = new Evaluator(BotWeights.FromJson("""{ "rival": 1 }"""));
+        var plain = new Evaluator(new BotWeights());
+        var s = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N)).Settlement(1, Vertex(0, -2, Corner.N))
+            .DevCards(0, knight: 2).DevCards(1, knight: 2)
+            .Build();
+        Assert.True(rivalWeights.Score(s, 0) < plain.Score(s, 0)); // seat 1 builds an army too
+
+        var calm = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N)).Settlement(1, Vertex(0, -2, Corner.N))
+            .DevCards(0, knight: 2)
+            .Build();
+        Assert.Equal(plain.Score(calm, 0), rivalWeights.Score(calm, 0)); // nobody else is
+    }
+
+    [Fact]
     public void WinningAndLosingDominate()
     {
         var s = new StateBuilder(TestBoards.Standard).Phase(Phase.Main).Build();
