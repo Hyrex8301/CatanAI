@@ -146,7 +146,7 @@ public partial class GameScreen : Control
         // Right column: log, bank, the opponents in the order they play after you, then you.
         _log = new LogPanel(_rightLayer, LogRect, _setup.Colors, _setup.HumanSeat, _text);
         _log.AddNote(resume is null
-            ? $"Game seed {_setup.Seed}. You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
+            ? $"Board seed {BoardSeed} (type it in Play → Normal game to get this board again). You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
         if (loadError is not null)
             _log.AddNote($"That save couldn't be loaded ({loadError}). Started a new game instead.", Ui.Bad);
@@ -274,7 +274,7 @@ public partial class GameScreen : Control
 
         if (resume is not null)
             return GameRunner.Resume(resume, agents, new RngChance(_setup.ChanceSeed ^ (ulong)resume.Actions.Count * 0x9E3779B97F4A7C15UL));
-        var state = new GameState(BoardGenerator.Balanced(new Rng(_setup.BoardSeed)), _options.ToSettings());
+        var state = new GameState(BoardGenerator.Balanced(new Rng(BoardSeed)), _options.ToSettings());
         return new GameRunner(state, agents, new RngChance(_setup.ChanceSeed));
     }
 
@@ -309,6 +309,9 @@ public partial class GameScreen : Control
         string path = ProjectSettings.GlobalizePath("res://bots/best.json");
         return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
     }
+
+    /// <summary>The board: the one picked in the mode setup, or the game's own random one.</summary>
+    private ulong BoardSeed => _options.BoardSeed ?? _setup.BoardSeed % 1_000_000; // short enough to type back in
 
     /// <summary>A new game's seed: random, giving you your chosen colour if you picked one in Settings.</summary>
     private ulong NewSeed() => GameSetup.SeedFor(_options.PreferredColor, () => (ulong)System.Random.Shared.NextInt64());

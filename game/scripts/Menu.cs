@@ -5,9 +5,10 @@ using Catan.UI;
 using Godot;
 
 /// <summary>
-/// Start screen: a freshly generated board on the sea behind a cream panel with Continue (the autosave), New game, Load game,
-/// Settings (points to win, bot speed, answer time for bot offers, friendly robber; saved between sessions), the M1 debug
-/// viewer and Quit.
+/// Start screen: a freshly generated board on the sea behind a cream panel with Play (the modes, each with its setup:
+/// <see cref="GameModes"/>), Settings (points to win, bot speed, answer time for bot offers,
+/// friendly robber, full screen, volume; saved between sessions), How to play and Quit (the M1 debug viewer with CATAN_DEV=1).
+/// The panel scrolls when an open section makes it taller than the window.
 /// </summary>
 public partial class Menu : Control
 {
@@ -18,8 +19,8 @@ public partial class Menu : Control
     private PanelContainer _panel = null!;
     private ScrollContainer _scroll = null!;
     private Vector2 _extra;
-    private VBoxContainer _saves = null!;
     private VBoxContainer _settings = null!;
+    private VBoxContainer _modes = null!;
 
     /// <summary>
     /// Sizes the menu to its contents, up to the window's height (then it scrolls), and keeps it centred up and down.
@@ -66,7 +67,7 @@ public partial class Menu : Control
             board.Setup(new Rect2(40, 40, 960 + extra.X, 820 + extra.Y));
             _extra = extra;
         });
-        // The menu scrolls when Load game or Settings makes it taller than the window.
+        // The menu scrolls when Play or Settings makes it taller than the window.
         _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         panel.AddChild(_scroll);
         var gutter = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; // room for the scrollbar
@@ -85,15 +86,8 @@ public partial class Menu : Control
         _column.AddChild(subtitle);
         _column.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
 
-        var store = GameSession.Store;
-        Button? first = null;
-        if (store.HasAutosave)
-            first = AddButton("Continue", () => Play(store.Load(store.AutosavePath)), primary: true);
-        var newGame = AddButton("New game", () => Play(null), primary: first is null);
-        first ??= newGame;
-        AddButton("Load game", () => Toggle(_saves, FillSaves));
-        _saves = Section();
-        AddButton("Placement practice", () => GetTree().ChangeSceneToFile("res://scenes/Practice.tscn"));
+        var play = AddButton("Play", () => Toggle(_modes, FillModes), primary: true);
+        _modes = Section();
         AddButton("Settings", () => Toggle(_settings, FillSettings));
         _settings = Section();
         var help = new HelpPanel();
@@ -104,9 +98,11 @@ public partial class Menu : Control
         AddChild(help); // over everything
         if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_HELP") == "1")
             help.Open(); // developer screenshots
-        first.GrabFocus();
+        play.GrabFocus();
         if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_SETTINGS") == "1")
             Toggle(_settings, FillSettings); // developer screenshots
+        if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_MODES") == "1")
+            Toggle(_modes, FillModes);
         DevShots.Run(this);
     }
 
@@ -150,27 +146,32 @@ public partial class Menu : Control
             fill();
     }
 
-    private void Play(GameRecord? resume)
+    /// <summary>Play: one card per mode (<see cref="GameModes"/>) with its setup and a Start button.</summary>
+    private void FillModes()
     {
-        GameSession.Resume = resume;
-        GetTree().ChangeSceneToFile("res://scenes/Game.tscn");
-    }
-
-    private void FillSaves()
-    {
-        var saves = GameSession.Store.List();
-        if (saves.Count == 0)
-            _saves.AddChild(Ui.Label("No saved games yet.", 15, Ui.MutedText));
-        foreach (var save in saves)
+        foreach (var mode in GameModes.All)
         {
-            var button = new Button
-            {
-                Text = $"{save.Name}   ({save.Record.Actions.Count} moves, {save.SavedAt.ToLocalTime():MMM d HH:mm})",
-                Alignment = HorizontalAlignment.Left,
-            };
-            button.AddThemeFontSizeOverride("font_size", 15);
-            button.Pressed += () => Play(save.Record);
-            _saves.AddChild(button);
+            var card = new PanelContainer();
+            card.AddThemeStyleboxOverride("panel", Ui.PanelStyle(Ui.PanelFill.Darkened(0.04f), radius: 10, margin: 12));
+            var body = new VBoxContainer();
+            body.AddThemeConstantOverride("separation", 6);
+            card.AddChild(body);
+            body.AddChild(Ui.Label(mode.Title, 19));
+            var about = Ui.Label(mode.Description, 14, Ui.MutedText);
+            about.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            body.AddChild(about);
+            mode.AddSetup(body);
+            var start = Ui.Button("Start", 17);
+            start.CustomMinimumSize = new Vector2(120, 40);
+            start.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+            start.AddThemeStyleboxOverride("normal", Ui.PanelStyle(Ui.ButtonBlue, radius: 8, margin: 6));
+            start.AddThemeStyleboxOverride("hover", Ui.PanelStyle(Ui.ButtonBlue.Lightened(0.12f), radius: 8, margin: 6));
+            start.AddThemeStyleboxOverride("pressed", Ui.PanelStyle(Ui.ButtonBlue.Darkened(0.1f), radius: 8, margin: 6));
+            foreach (string ink in new[] { "font_color", "font_hover_color", "font_pressed_color" })
+                start.AddThemeColorOverride(ink, Ui.Text);
+            start.Pressed += () => mode.Start(GetTree());
+            body.AddChild(start);
+            _modes.AddChild(card);
         }
     }
 
@@ -181,51 +182,34 @@ public partial class Menu : Control
 
         var vp = new SpinBox { MinValue = 5, MaxValue = 15, Value = o.VpToWin, CustomMinimumSize = new Vector2(110, 0) };
         vp.ValueChanged += value => Save(GameSession.Options with { VpToWin = (int)value });
-        _settings.AddChild(SettingRow("Points to win", vp));
+        _settings.AddChild(Ui.SettingRow("Points to win", vp));
 
         var speed = new OptionButton();
         foreach (var (label, _) in Speeds)
             speed.AddItem(label);
         speed.Selected = Array.FindIndex(Speeds, s => Math.Abs(s.Seconds - o.BotDelaySeconds) < 0.01) is var i and >= 0 ? i : 1;
         speed.ItemSelected += index => Save(GameSession.Options with { BotDelaySeconds = Speeds[index].Seconds });
-        _settings.AddChild(SettingRow("Bot speed", speed));
+        _settings.AddChild(Ui.SettingRow("Bot speed", speed));
 
         var window = new OptionButton();
         foreach (int seconds in Windows)
             window.AddItem($"{seconds} s");
         window.Selected = Array.IndexOf(Windows, (int)o.ResponseWindowSeconds) is var w and >= 0 ? w : 1;
         window.ItemSelected += index => Save(GameSession.Options with { ResponseWindowSeconds = Windows[index] });
-        _settings.AddChild(SettingRow("Time to answer bot offers", window));
+        _settings.AddChild(Ui.SettingRow("Time to answer bot offers", window));
 
         var friendly = new CheckBox { ButtonPressed = o.FriendlyRobber, TooltipText = "The robber can't be placed next to a player with 2 or fewer points" };
         friendly.Toggled += on => Save(GameSession.Options with { FriendlyRobber = on });
-        _settings.AddChild(SettingRow("Friendly robber", friendly));
-
-        var colour = new OptionButton();
-        colour.AddItem("Random");
-        foreach (var c in Enum.GetValues<SeatColor>())
-            colour.AddItem(c.ToString());
-        colour.Selected = o.PreferredColor is { } chosen ? (int)chosen + 1 : 0;
-        colour.ItemSelected += index => Save(GameSession.Options with { PreferredColor = index == 0 ? null : (SeatColor)(index - 1) });
-        _settings.AddChild(SettingRow("Your colour", colour));
+        _settings.AddChild(Ui.SettingRow("Friendly robber", friendly));
 
         var fullscreen = new CheckBox { ButtonPressed = o.Fullscreen, TooltipText = "F11 switches too" };
         fullscreen.Toggled += on => GameSession.SetFullscreen(on);
-        _settings.AddChild(SettingRow("Full screen", fullscreen));
+        _settings.AddChild(Ui.SettingRow("Full screen", fullscreen));
 
         var volume = new HSlider { MinValue = 0, MaxValue = 100, Step = 5, Value = o.Volume * 100, CustomMinimumSize = new Vector2(160, 0), TooltipText = "0 turns sound off" };
         volume.ValueChanged += v => Save(GameSession.Options with { Volume = v / 100 });
         volume.DragEnded += _ => Sounds.Play(GameSound.YourTurn); // hear the new level
-        _settings.AddChild(SettingRow("Sound volume", volume));
+        _settings.AddChild(Ui.SettingRow("Sound volume", volume));
     }
 
-    private static HBoxContainer SettingRow(string label, Control control)
-    {
-        var row = new HBoxContainer();
-        var text = Ui.Label(label, 16);
-        text.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        row.AddChild(text);
-        row.AddChild(control);
-        return row;
-    }
 }

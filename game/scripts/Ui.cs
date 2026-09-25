@@ -69,6 +69,17 @@ public static class Ui
         return label;
     }
 
+    /// <summary>A settings line: a label on the left, its control on the right.</summary>
+    public static HBoxContainer SettingRow(string label, Control control)
+    {
+        var row = new HBoxContainer();
+        var text = Label(label, 16);
+        text.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(text);
+        row.AddChild(control);
+        return row;
+    }
+
     public static Button Button(string text, int size = 20)
     {
         var button = new Button { Text = text, CustomMinimumSize = new Vector2(280, 52) };

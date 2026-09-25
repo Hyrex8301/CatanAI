@@ -10,6 +10,9 @@ public sealed record GameOptions
     /// <summary>Master seed for board, seats, colors, dice and bots; null picks one at random.</summary>
     public ulong? Seed { get; init; }
 
+    /// <summary>A fixed board: the same seed always deals the same board (null = a new random board each game).</summary>
+    public ulong? BoardSeed { get; init; }
+
     public int VpToWin { get; init; } = 10;
     public bool FriendlyRobber { get; init; }
 

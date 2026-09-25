@@ -28,6 +28,17 @@ public class GameSetupTests
     }
 
     [Fact]
+    public void ABoardSeedIsSavedAndDealsTheSameBoard()
+    {
+        var o = GameOptions.FromJson((new GameOptions() with { BoardSeed = 12345 }).ToJson());
+        Assert.Equal(12345UL, o.BoardSeed);
+        Assert.Null(GameOptions.FromJson(new GameOptions().ToJson()).BoardSeed); // random by default
+        var a = Catan.Core.BoardGenerator.Balanced(new Catan.Core.Rng(12345));
+        var b = Catan.Core.BoardGenerator.Balanced(new Catan.Core.Rng(12345));
+        Assert.Equal(Catan.Core.BoardJson.Serialize(a), Catan.Core.BoardJson.Serialize(b));
+    }
+
+    [Fact]
     public void ColorsArePermutedAndSeatsVary()
     {
         var seats = new HashSet<int>();
