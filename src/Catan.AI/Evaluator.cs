@@ -23,7 +23,17 @@ public sealed class Evaluator
         FBestSpot = I("best_spot_pips"), FRoad = I("road_length"), FRoadGap = I("longest_road_gap"), FKnights = I("knights"),
         FArmyGap = I("army_gap"), FDev = I("dev_cards"), FBlocked = I("robber_blocked"), FOppMax = I("opp_max"), FOppMean = I("opp_mean");
 
+    private static readonly int FCityMissing = I("city_missing"), FSettlementMissing = I("settlement_missing"), FDevMissing = I("dev_missing");
+
     private static int I(string name) => BotWeights.IndexOf(name);
+
+    private static readonly int FeatureCount = BotWeights.Names.Count;
+
+    // Topology tables flattened to [vertex * 3 + i]: two-dimensional arrays are slow to index in this hot loop.
+    private static readonly int[] VertexHexes = Flatten(Topology.VertexHexes), VertexEdges = Flatten(Topology.VertexEdges),
+        VertexNeighbors = Flatten(Topology.VertexNeighbors);
+
+    private static int[] Flatten(int[,] table) => table.Cast<int>().ToArray();
 
     public Evaluator(BotWeights weights) => Weights = weights;
 
@@ -49,11 +59,12 @@ public sealed class Evaluator
     }
 
     /// <summary>Every seat's weighted feature total.</summary>
+    [System.Runtime.CompilerServices.SkipLocalsInit]
     public void Values(GameState s, Span<double> value)
     {
-        Span<double> features = stackalloc double[Seats * BotWeights.Names.Count];
+        Span<double> features = stackalloc double[Seats * FeatureCount];
         Features(s, features);
-        int n = BotWeights.Names.Count;
+        int n = FeatureCount;
         for (int seat = 0; seat < Seats; seat++)
         {
             double v = 0;
@@ -69,71 +80,74 @@ public sealed class Evaluator
     /// </summary>
     public static void Features(GameState s, Span<double> f)
     {
-        int n = BotWeights.Names.Count;
+        int n = FeatureCount;
         f.Clear();
+        var board = s.Board;
+        var owners = s.VertexOwner;
+        var edgeOwner = s.EdgeOwner;
+        int robber = s.RobberHex;
 
-        // Production in pips (x/36 is the expected cards per roll), and pips the robber blocks.
-        Span<double> prod = stackalloc double[Seats * R];
-        Span<double> blocked = stackalloc double[Seats];
-        for (int h = 0; h < Topology.HexCount; h++)
-        {
-            int r = s.Board.ResourceAt(h);
-            if (r < 0)
-                continue;
-            int pips = s.Board.PipsAt(h);
-            for (int c = 0; c < 6; c++)
-            {
-                int v = Topology.HexVertices[h, c];
-                int owner = s.VertexOwner[v];
-                if (owner < 0)
-                    continue;
-                if (h == s.RobberHex)
-                    blocked[owner] += pips * s.VertexLevel[v];
-                else
-                    prod[owner * R + r] += pips * s.VertexLevel[v];
-            }
-        }
-
-        // Harbors owned.
+        // One pass over the vertices. Buildings: production in pips (x/36 is the expected cards per roll), pips the robber
+        // blocks, harbors owned. Empty spots: where each seat could settle next (distance rule and one of its roads; cost
+        // ignored). All sums are whole numbers, so the order doesn't change the result.
+        Span<int> prod = stackalloc int[Seats * R];
+        Span<int> blocked = stackalloc int[Seats];
         Span<bool> generic = stackalloc bool[Seats];
         Span<bool> twoToOne = stackalloc bool[Seats * R];
-        for (int v = 0; v < Topology.VertexCount; v++)
-        {
-            int owner = s.VertexOwner[v], spot = Topology.VertexHarbor[v];
-            if (owner < 0 || spot < 0)
-                continue;
-            var type = s.Board.HarborTypeAt(spot);
-            if (type == HarborType.Generic)
-                generic[owner] = true;
-            else
-                twoToOne[owner * R + (int)type] = true;
-        }
-
-        // Where each seat could settle next (distance rule and one of its roads; cost ignored).
         Span<int> spots = stackalloc int[Seats];
         Span<int> bestSpot = stackalloc int[Seats];
         for (int v = 0; v < Topology.VertexCount; v++)
         {
-            if (s.VertexOwner[v] >= 0 || NextToBuilding(s, v))
+            int owner = owners[v];
+            if (owner >= 0)
+            {
+                int level = s.VertexLevel[v];
+                for (int i = 0; i < 3; i++)
+                {
+                    int h = VertexHexes[v * 3 + i];
+                    if (h < 0)
+                        continue;
+                    int r = board.ResourceAt(h);
+                    if (r < 0)
+                        continue;
+                    if (h == robber)
+                        blocked[owner] += board.PipsAt(h) * level;
+                    else
+                        prod[owner * R + r] += board.PipsAt(h) * level;
+                }
+                int spot = Topology.VertexHarbor[v];
+                if (spot >= 0)
+                {
+                    var type = board.HarborTypeAt(spot);
+                    if (type == HarborType.Generic)
+                        generic[owner] = true;
+                    else
+                        twoToOne[owner * R + (int)type] = true;
+                }
+                continue;
+            }
+
+            int e0 = VertexEdges[v * 3], e1 = VertexEdges[v * 3 + 1], e2 = VertexEdges[v * 3 + 2];
+            int o0 = e0 >= 0 ? edgeOwner[e0] : -1, o1 = e1 >= 0 ? edgeOwner[e1] : -1, o2 = e2 >= 0 ? edgeOwner[e2] : -1;
+            if (o0 < 0 && o1 < 0 && o2 < 0)
+                continue; // nobody's road reaches it
+            int n0 = VertexNeighbors[v * 3], n1 = VertexNeighbors[v * 3 + 1], n2 = VertexNeighbors[v * 3 + 2];
+            if ((n0 >= 0 && owners[n0] >= 0) || (n1 >= 0 && owners[n1] >= 0) || (n2 >= 0 && owners[n2] >= 0))
                 continue;
             int pips = 0;
             for (int i = 0; i < 3; i++)
             {
-                int h = Topology.VertexHexes[v, i];
+                int h = VertexHexes[v * 3 + i];
                 if (h >= 0)
-                    pips += s.Board.PipsAt(h);
+                    pips += board.PipsAt(h);
             }
-            for (int i = 0; i < 3; i++)
-            {
-                int e = Topology.VertexEdges[v, i];
-                if (e < 0 || s.EdgeOwner[e] < 0)
-                    continue;
-                int owner = s.EdgeOwner[e];
-                if (i > 0 && SeenOwner(s, v, i, owner))
-                    continue; // count each seat once per vertex
-                spots[owner]++;
-                bestSpot[owner] = Math.Max(bestSpot[owner], pips);
-            }
+            // Count each seat once per vertex.
+            if (o0 >= 0)
+                AddSpot(spots, bestSpot, o0, pips);
+            if (o1 >= 0 && o1 != o0)
+                AddSpot(spots, bestSpot, o1, pips);
+            if (o2 >= 0 && o2 != o0 && o2 != o1)
+                AddSpot(spots, bestSpot, o2, pips);
         }
 
         int maxRoad = 0, maxKnights = 0;
@@ -176,6 +190,9 @@ public sealed class Evaluator
             row[FCanSettlement] = s.SettlementsLeft[seat] > 0 && Costs.Settlement.FitsIn(hand) ? 1 : 0;
             row[FCanCity] = s.CitiesLeft[seat] > 0 && Costs.City.FitsIn(hand) ? 1 : 0;
             row[FCanDev] = Costs.DevCard.FitsIn(hand) ? 1 : 0;
+            row[FCityMissing] = s.CitiesLeft[seat] > 0 && s.SettlementsLeft[seat] < Costs.SettlementsPerPlayer ? Missing(Costs.City, hand) : Costs.City.Total;
+            row[FSettlementMissing] = s.SettlementsLeft[seat] > 0 && spots[seat] > 0 ? Missing(Costs.Settlement, hand) : Costs.Settlement.Total;
+            row[FDevMissing] = DevDeckSize(s) > 0 ? Missing(Costs.DevCard, hand) : Costs.DevCard.Total;
             row[FSpots] = Math.Min(spots[seat], 6);
             row[FBestSpot] = bestSpot[seat];
             row[FRoad] = s.RoadLength[seat];
@@ -191,26 +208,26 @@ public sealed class Evaluator
         }
     }
 
-    private static bool NextToBuilding(GameState s, int v)
+    private static int Missing(ResourceSet cost, ReadOnlySpan<int> hand)
     {
-        for (int i = 0; i < 3; i++)
-        {
-            int nb = Topology.VertexNeighbors[v, i];
-            if (nb >= 0 && s.VertexOwner[nb] >= 0)
-                return true;
-        }
-        return false;
+        int missing = 0;
+        for (int r = 0; r < R; r++)
+            missing += Math.Max(0, cost[r] - hand[r]);
+        return missing;
     }
 
-    private static bool SeenOwner(GameState s, int v, int upTo, int owner)
+    private static int DevDeckSize(GameState s)
     {
-        for (int j = 0; j < upTo; j++)
-        {
-            int e = Topology.VertexEdges[v, j];
-            if (e >= 0 && s.EdgeOwner[e] == owner)
-                return true;
-        }
-        return false;
+        int total = 0;
+        for (int t = 0; t < D; t++)
+            total += s.DevDeck[t];
+        return total;
+    }
+
+    private static void AddSpot(Span<int> spots, Span<int> bestSpot, int seat, int pips)
+    {
+        spots[seat]++;
+        bestSpot[seat] = Math.Max(bestSpot[seat], pips);
     }
 
     private static int OtherMax(int[] values, int seat)

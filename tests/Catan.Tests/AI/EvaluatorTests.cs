@@ -46,6 +46,23 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void MissingCardsCountWhatEachBuildStillNeeds()
+    {
+        // Seat 0 has a settlement to upgrade and a spot its road reaches (see the test below); seat 1 has neither.
+        var s = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N))
+            .Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E))
+            .Hand(0, brick: 1, grain: 1, ore: 1)
+            .Build();
+        Assert.Equal(3, F(s, 0, "city_missing"));       // 1 grain + 2 ore
+        Assert.Equal(2, F(s, 0, "settlement_missing")); // lumber + wool
+        Assert.Equal(1, F(s, 0, "dev_missing"));        // wool
+        Assert.Equal(5, F(s, 1, "city_missing"));       // nothing to upgrade: the full cost
+        Assert.Equal(4, F(s, 1, "settlement_missing")); // no spot: the full cost
+        Assert.Equal(3, F(s, 1, "dev_missing"));
+    }
+
+    [Fact]
     public void SettlementSpotsFollowRoadsAndTheDistanceRule()
     {
         // Seat 0: settlement at the center's N, roads N -> NE -> SE: SE is a legal spot (NE is too close).

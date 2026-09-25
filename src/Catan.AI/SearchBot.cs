@@ -24,6 +24,9 @@ public sealed record SearchSettings
     /// <summary>Paired mode: how many standard errors a move must beat SmartBot's choice by to replace it.</summary>
     public double Confidence { get; init; } = 1.5;
 
+    /// <summary>Paired mode: the smallest average gain in win chance (0..1) that replaces SmartBot's choice.</summary>
+    public double MinGain { get; init; }
+
     /// <summary>Thinking time per real decision (used when <see cref="Iterations"/> is null).</summary>
     public int ThinkMs { get; init; } = 1000;
 
@@ -426,7 +429,7 @@ public sealed class SearchBot : IPlayerAgent
                 continue;
             double mean = sum / n, variance = Math.Max(sq / n - mean * mean, 0) * n / (n - 1);
             double bound = mean - Settings.Confidence * Math.Sqrt(variance / n);
-            if (bound > bestBound)
+            if (bound > bestBound && mean >= Settings.MinGain)
                 (best, bestBound) = (m, bound);
         }
         return rootMoves[best];

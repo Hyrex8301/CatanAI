@@ -44,6 +44,7 @@ public static class Bots
                 "conf" => settings with { Confidence = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) },
                 "root" => settings with { RootMoves = int.Parse(value) },
                 "inner" => settings with { InnerMoves = int.Parse(value) },
+                "gain" => settings with { MinGain = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) },
                 "c" => settings with { Exploration = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) },
                 _ => throw new ArgumentException($"Unknown search option '{key}'."),
             };

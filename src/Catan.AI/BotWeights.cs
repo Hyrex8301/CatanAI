@@ -24,6 +24,9 @@ public sealed class BotWeights
         ["dev_cards"] = 2.5,
         ["robber_blocked"] = -15,
         ["opp_max"] = 0.5, ["opp_mean"] = 0.25,
+        // Cards still missing for a city, settlement or dev card (the full cost when it can't be built at all). 0 here, so
+        // weight files from before these features behave exactly as they did.
+        ["city_missing"] = 0, ["settlement_missing"] = 0, ["dev_missing"] = 0,
     };
 
     /// <summary>
@@ -38,6 +41,7 @@ public sealed class BotWeights
         "hand_total", "hand_over7", "can_road", "can_settlement", "can_city", "can_dev",
         "settle_spots", "best_spot_pips", "road_length", "longest_road_gap", "knights", "army_gap",
         "dev_cards", "robber_blocked", "opp_max", "opp_mean",
+        "city_missing", "settlement_missing", "dev_missing",
     };
 
     private readonly double[] _values;
