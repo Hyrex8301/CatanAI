@@ -28,6 +28,7 @@ static class Sim
                 "calibrate" => Calibrate(options),
                 "think" => Think(options),
                 "train" => Train(options),
+                "deal" => Deal(options),
                 "talk" => Talk(args.Skip(1)),
                 _ => Usage(),
             };
@@ -54,6 +55,7 @@ static class Sim
               ladder --bots BOT,BOT,... [--games N] [--seed S] [--threads T]  every pair plays 2v2; pairwise win rates and ratings
               calibrate [--weights W.json] [--games N] [--out F.json]      fit evaluation values to win chances from self-play
               think [--weights W.json] [--ms M] [--positions N]            search iterations a thinking time buys (all threads)
+              deal [--seed S] [--weights W] [--out position.json]           a Position practice position
               talk "wheat nb?" ["don't block me" ...]                 how the chat reads each line (you are blue, talking to orange)
               train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
                                                                            self-play training; resumes if DIR has a checkpoint;
@@ -329,6 +331,19 @@ static class Sim
             var reading = Catan.AI.Talk.PhraseReader.Read(line, 1, names, 2, board);
             Console.WriteLine($"{line,-45} -> {reading.Describe(names, 1, board)}");
         }
+        return 0;
+    }
+
+    // ---- deal ----
+
+    /// <summary>Deals a Position practice position (the same seed deals the same one) and writes it as a position file.</summary>
+    private static int Deal(Options o)
+    {
+        var weights = o.Flag("weights") ? BotWeights.Load(o.String("weights", "")) : new BotWeights();
+        var position = PositionDealer.Deal(weights, o.ULong("seed", 1));
+        string file = o.String("out", "position.json");
+        File.WriteAllText(file, position.ToJson());
+        Console.WriteLine($"seat {position.Seat}: {position.Description} -> {file}");
         return 0;
     }
 

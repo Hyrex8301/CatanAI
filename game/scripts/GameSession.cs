@@ -16,9 +16,6 @@ public static class GameSession
     /// <summary>When set, the game scene starts from this saved position (Play → Position practice).</summary>
     public static Catan.Core.Position? StartPosition { get; set; }
 
-    /// <summary>Saved positions (on Windows: %APPDATA%Godotpp_userdataCatanAIpositions).</summary>
-    public static PositionStore Positions { get; } = new(ProjectSettings.GlobalizePath("user://positions"));
-
     /// <summary>Saves go in Godot's per-user data folder (on Windows: %APPDATA%\Godot\app_userdata\CatanAI\saves).</summary>
     public static SaveStore Store { get; } = new(ProjectSettings.GlobalizePath("user://saves"));
 

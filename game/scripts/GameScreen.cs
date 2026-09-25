@@ -82,6 +82,16 @@ public partial class GameScreen : Control
     /// <summary>Your time ran out and the game made a move for you; cleared when any move is applied.</summary>
     private bool _timeUpHandled;
 
+    /// <summary>Position practice: each play of your turn, graded in the background; the review shows when you end the turn.</summary>
+    private TurnReview _review = null!;
+    private readonly List<(GameAction Move, Task<DecisionGrade> Grade)> _plays = new();
+    private int _ungraded;
+    private bool _practiceOver;
+    private bool _paused;
+
+    /// <summary>Position practice, until you end the practice turn (no clock, no time-outs until then).</summary>
+    private bool Deciding => _start?.Kind == ScenarioKind.Decision && !_practiceOver;
+
     /// <summary>Your open offers that every opponent declined, and when that was first seen (they close a few seconds later).</summary>
     private readonly Dictionary<(int Slot, TradeOffer Offer), DateTime> _declinedOffers = new();
 
@@ -149,11 +159,15 @@ public partial class GameScreen : Control
 
         // Right column: log, bank, the opponents in the order they play after you, then you.
         _log = new LogPanel(_rightLayer, LogRect, _setup.Colors, _setup.HumanSeat, _text);
-        _log.AddNote(resume is null && _start is not null
+        _log.AddNote(resume is null && _start?.Kind == ScenarioKind.Decision
+            ? $"Position practice. You are {_setup.HumanColor}."
+            : resume is null && _start is not null
             ? $"Playing from a saved position{(_start.Title is { } title ? $": {title}" : "")}. You are {_setup.HumanColor}."
             : resume is null
             ? $"Board seed {BoardSeed} (type it in Play → Normal game to get this board again). You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
+        if (resume is null && _start?.Description is { Length: > 0 } about)
+            _log.AddNote(about);
         if (loadError is not null)
             _log.AddNote($"That save couldn't be loaded ({loadError}). Started a new game instead.", Ui.Bad);
         _chat = new ChatPanel(_rightLayer, ChatRect, _setup.Colors, _setup.HumanSeat);
@@ -196,6 +210,7 @@ public partial class GameScreen : Control
         _discard.Changed += () => { if (_view is not null) _hand.Update(HudModel.Hand(_view, _discard.Cards)); };
         _victims = new VictimPopup(_centerLayer, VictimCenter, _setup.Colors, _text, () => { _choices = null; Refresh(); });
         _devPopup = new DevCardPopup(_handLayer, DevRect, _setup.HumanSeat, Submit);
+        _review = new TurnReview(_centerLayer, VictimCenter, NewPosition, () => { _review.Close(); _paused = false; }, Leave);
         _devPopup.Closed += () => { _devPopup.Close(); Refresh(); };
         _hand.DevClicked += type => { CloseProposal(); _devPopup.Open(type); Refresh(); };
 
@@ -247,7 +262,6 @@ public partial class GameScreen : Control
         menu.AddItem("Game results", 2);
         menu.SetItemDisabled(2, true);
         menu.AddItem("How to play", 3);
-        menu.AddItem("Save position", 4);
         _menu = menu;
         menu.IdPressed += id =>
         {
@@ -259,8 +273,6 @@ public partial class GameScreen : Control
                 ShowResults();
             else if (id == 3)
                 _help.Open();
-            else
-                SavePosition();
         };
         AddChild(menu);
         var gear = new ActionTile { Position = new Vector2(8, 8), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => Gear(c, at, s) };
@@ -315,7 +327,7 @@ public partial class GameScreen : Control
     private bool Fast => Autoplaying && !ForceAnimate;
 
     /// <summary>The trained weights shipped with the game (game/bots/best.json), or the hand-set defaults if there are none yet.</summary>
-    private static BotWeights BotWeightsFile()
+    internal static BotWeights BotWeightsFile()
     {
         string path = ProjectSettings.GlobalizePath("res://bots/best.json");
         return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
@@ -332,20 +344,6 @@ public partial class GameScreen : Control
 
     /// <summary>The saved position this game starts from (Play → Position practice), or null.</summary>
     private Catan.Core.Position? _start;
-
-    /// <summary>Saves where the game stands now as a position, to play from later (Play → Position practice).</summary>
-    private void SavePosition()
-    {
-        try
-        {
-            string path = GameSession.Positions.Save(Catan.Core.Position.From(_runner.State, _setup.HumanSeat), DateTime.Now);
-            _log.AddNote($"Position saved as {System.IO.Path.GetFileNameWithoutExtension(path)}. Play it from the menu: Play → Position practice.", Ui.Good);
-        }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
-        {
-            _log.AddNote($"Couldn't save the position: {ex.Message}", Ui.Bad);
-        }
-    }
 
     /// <summary>The table talk for this game: new, or the one saved with the game being continued.</summary>
     private TableTalk CreateTalk(GameRecord? resume)
@@ -413,6 +411,11 @@ public partial class GameScreen : Control
         {
             while (!_runner.IsOver && !_quit.IsCancellationRequested)
             {
+                // Position practice: the game waits while your turn's review is up (Play it out lets it go on).
+                while (_paused && !_quit.IsCancellationRequested)
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_quit.IsCancellationRequested)
+                    break;
                 bool humanActing = Rules.ActingSeat(_runner.State) == _setup.HumanSeat;
                 int before = _runner.Actions.Count;
                 var stepClock = System.Diagnostics.Stopwatch.StartNew();
@@ -469,7 +472,9 @@ public partial class GameScreen : Control
     public override void _Process(double delta)
     {
         _chat.Tick();
-        if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
+        if (Deciding || _paused)
+            _bar.SetTimer("");
+        else if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
         {
             _popups.Tick(deadline, _human.ResponseWindow);
             _bar.SetTimer(Clock(Math.Max(0, (deadline - DateTime.UtcNow).TotalSeconds)));
@@ -502,6 +507,8 @@ public partial class GameScreen : Control
     /// </summary>
     private void OnTimeUp()
     {
+        if (Deciding)
+            return;
         if (_timeUpHandled || Autoplaying || _runner.IsOver || _view is not { } v || v.CurrentPlayer != _setup.HumanSeat
             || _human.Prompt is not { IsOptional: false } prompt || !_clock.Expired(DateTime.UtcNow))
             return;
@@ -605,6 +612,9 @@ public partial class GameScreen : Control
 
     private void OnPromptChanged()
     {
+        // Developer screenshots: CATAN_PRACTICE_AUTO=1 plays the practice turn with a bot's moves (through Submit, so they're graded).
+        if (Deciding && System.Environment.GetEnvironmentVariable("CATAN_PRACTICE_AUTO") == "1" && _human.Prompt is { IsOptional: false })
+            CallDeferred(MethodName.PracticeAutoMove);
         _choices = null;
         ClearPending();
         _mode = BuildMode.None;
@@ -874,6 +884,66 @@ public partial class GameScreen : Control
             _queued.Clear();
     }
 
+    /// <summary>
+    /// Position practice: a play of your turn. Moves from the legal list are graded in the background from the view you had
+    /// just before (every move you could have made, ranked); trade offers aren't in that list, so they're only counted.
+    /// Ending the turn ends the practice and shows the review.
+    /// </summary>
+    private void RecordPracticePlay(HumanPrompt prompt, GameAction action)
+    {
+        if (prompt.Legal.Count == 1)
+        {
+            // A forced move (nothing else to do) isn't a decision: not graded, not counted.
+        }
+        else if (prompt.Legal.Contains(action))
+        {
+            var coach = new DecisionCoach(BotWeightsFile());
+            var names = Enumerable.Range(0, GameConstants.PlayerCount).Select(_text.Seat).ToArray();
+            var (view, legal) = (prompt.View, prompt.Legal.ToList());
+            _plays.Add((action, Task.Run(() => coach.Grade(view, legal, names))));
+        }
+        else
+            _ungraded++;
+        if (action.Type == ActionType.EndTurn)
+        {
+            _practiceOver = true;
+            _paused = true;
+            ShowTurnReview();
+        }
+    }
+
+    private async void ShowTurnReview()
+    {
+        CloseProposal();
+        _review.ShowWaiting();
+        await Task.WhenAll(_plays.Select(p => p.Grade));
+        if (!IsInsideTree())
+            return;
+        var graded = _plays.Select(p => (p.Grade.Result, p.Move)).Where(p => p.Result.Moves.Any(m => m.Move == p.Move))
+            .Select(p => new GradedPlay(p.Result.Of(p.Move), p.Result.Moves[0], p.Result.Moves.Count)).ToList();
+        _review.Show(graded, _ungraded);
+    }
+
+    private void NewPosition()
+    {
+        _quit.Cancel();
+        GameSession.Resume = null;
+        GameSession.StartPosition = GameModes.DealPosition();
+        GetTree().ReloadCurrentScene();
+    }
+
+    /// <summary>Developer screenshots (CATAN_PRACTICE_AUTO=1): the practice turn played by a bot through <see cref="Submit"/>.</summary>
+    private void PracticeAutoMove()
+    {
+        if (!Deciding || _human.Prompt is not { IsOptional: false } prompt || prompt.View.CurrentPlayer != _setup.HumanSeat)
+            return;
+        var bot = new SmartBot(BotWeightsFile(), SmartBotSettings.Play, _setup.BotSeed + 303 + (ulong)_plays.Count);
+        var move = bot.DecideAsync(prompt.View, prompt.Legal, default).Result;
+        if (move.Type == ActionType.OfferTrade)
+            move = prompt.Legal.First(a => a.Type == ActionType.EndTurn); // keep the dev turn short: no waiting on answers
+        Submit(move);
+    }
+
     /// <summary>Checks the move with the engine first (the runner would reject an illegal one and stop the game).</summary>
     private bool Submit(GameAction action)
     {
@@ -882,6 +952,8 @@ public partial class GameScreen : Control
             _bar.SetStatus("Can't do that", reason, error: true);
             return false;
         }
+        if (Deciding && _human.Prompt is { IsOptional: false } prompt && prompt.View.CurrentPlayer == _setup.HumanSeat)
+            RecordPracticePlay(prompt, action);
         _choices = null;
         return _human.Submit(action);
     }
