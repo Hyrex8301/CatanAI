@@ -38,5 +38,7 @@
   "rival": -0.0672,
   "settles_stuck": 0,
   "stuck_city_combo": 0,
-  "stuck_city_missing": 0
+  "stuck_city_missing": 0,
+  "robber_magnet": 0,
+  "public_lead": 0
 }

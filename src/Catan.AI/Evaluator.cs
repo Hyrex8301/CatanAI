@@ -31,6 +31,8 @@ public sealed class Evaluator
 
     private static readonly int FStuck = I("settles_stuck"), FStuckCityCombo = I("stuck_city_combo"), FStuckCityMissing = I("stuck_city_missing");
 
+    private static readonly int FRobberMagnet = I("robber_magnet"), FPublicLead = I("public_lead");
+
     /// <summary>Points at which the leader threat starts to count (it is full one point from winning).</summary>
     private const int ThreatStartVp = 5;
 
@@ -124,6 +126,7 @@ public sealed class Evaluator
         // blocks, harbors owned. Empty spots: where each seat could settle next (distance rule and one of its roads; cost
         // ignored). All sums are whole numbers, so the order doesn't change the result.
         Span<int> prod = stackalloc int[Seats * R];
+        Span<int> onHex = stackalloc int[Seats * Topology.HexCount]; // pips x level per seat per hex (robber_magnet)
         Span<int> blocked = stackalloc int[Seats];
         Span<bool> generic = stackalloc bool[Seats];
         Span<bool> twoToOne = stackalloc bool[Seats * R];
@@ -147,6 +150,7 @@ public sealed class Evaluator
                         blocked[owner] += board.PipsAt(h) * level;
                     else
                         prod[owner * R + r] += board.PipsAt(h) * level;
+                    onHex[owner * Topology.HexCount + h] += board.PipsAt(h) * level;
                 }
                 int spot = Topology.VertexHarbor[v];
                 if (spot >= 0)
@@ -255,6 +259,18 @@ public sealed class Evaluator
             row[FStuck] = stuck ? 1 : 0;
             row[FStuckCityCombo] = stuck ? row[FCityCombo] : 0;
             row[FStuckCityMissing] = stuck ? row[FCityMissing] : 0;
+            // The obvious robber target: the most production one robber placement could shut off (not where it stands now),
+            // and the lead in points everyone can see.
+            int magnet = 0;
+            for (int h = 0; h < Topology.HexCount; h++)
+                if (h != robber)
+                    magnet = Math.Max(magnet, onHex[seat * Topology.HexCount + h]);
+            row[FRobberMagnet] = magnet / 36.0;
+            int otherPublic = 0;
+            for (int other = 0; other < Seats; other++)
+                if (other != seat)
+                    otherPublic = Math.Max(otherPublic, s.PublicVP[other]);
+            row[FPublicLead] = Math.Clamp(s.PublicVP[seat] - otherPublic, 0, 5);
             row[FSpots] = Math.Min(spots[seat], 6);
             row[FBestSpot] = bestSpot[seat];
             row[FRoad] = s.RoadLength[seat];

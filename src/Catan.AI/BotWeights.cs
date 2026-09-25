@@ -35,6 +35,9 @@ public sealed class BotWeights
         // Out of settlements (all 5 on the board; only a city frees one): a flag, ore + wheat production, and cards still
         // missing for a city, each only while stuck. Opponents who are stuck are worth blocking and not feeding ore or wheat.
         ["settles_stuck"] = 0, ["stuck_city_combo"] = 0, ["stuck_city_missing"] = 0,
+        // Being the obvious robber target: the most production (cards per roll) one robber placement could shut off, and
+        // the lead in points everyone can see (hidden VP cards keep you under the radar).
+        ["robber_magnet"] = 0, ["public_lead"] = 0,
     };
 
     /// <summary>
@@ -53,6 +56,7 @@ public sealed class BotWeights
         "dead_roads", "leader_threat", "last_help",
         "knight_blocked", "vp_lead", "rival",
         "settles_stuck", "stuck_city_combo", "stuck_city_missing",
+        "robber_magnet", "public_lead",
     };
 
     private readonly double[] _values;

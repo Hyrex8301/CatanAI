@@ -140,6 +140,22 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void TheBiggestRobberTargetAndTheVisibleLead()
+    {
+        // A city on hex 0 (a 6: 5 pips) makes it the worst place for the robber to land: 10 pips.
+        var s = new StateBuilder(TestBoards.Standard).City(0, Vertex(0, -2, Corner.N)).Settlement(1, Vertex(0, 0, Corner.N)).Build();
+        Assert.Equal(10 / 36.0, F(s, 0, "robber_magnet"), 9);
+        s.RobberHex = 0; // standing there already: it has to move elsewhere
+        Assert.True(F(s, 0, "robber_magnet") < 10 / 36.0);
+
+        s.PublicVP[0] = 5;
+        s.PublicVP[1] = 2;
+        s.DevHand[1 * GameConstants.DevCardTypeCount + (int)DevCardType.VictoryPoint] = 3; // hidden: doesn't count
+        Assert.Equal(3, F(s, 0, "public_lead"));
+        Assert.Equal(0, F(s, 1, "public_lead"));
+    }
+
+    [Fact]
     public void RivalsForTheSameAwardCountExtra()
     {
         var rivalWeights = new Evaluator(BotWeights.FromJson("""{ "rival": 1 }"""));
