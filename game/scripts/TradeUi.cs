@@ -245,6 +245,9 @@ public sealed class TradePopups
         parent.AddChild(_stack);
     }
 
+    /// <summary>The promises riding on the offer in a slot (table talk), shown on its card; null for none.</summary>
+    public Func<int, string?>? DealNote { get; set; }
+
     public void Update(PlayerView v, HumanPrompt? prompt)
     {
         foreach (var child in _stack.GetChildren())
@@ -290,6 +293,7 @@ public sealed class TradePopups
     {
         var body = Popup(o.From, $"{_text.Seat(o.From)} wants to trade", out var panel);
         var rows = Rows(body, (o.From, false, o.Give), (_seat, true, o.Get));
+        AddDealNote(body, slot);
         Answers(rows, o, except: new[] { o.From, _seat }, v, slot, legal, clickable: false);
 
         var answer = TradeModel.Answer(o, _seat);
@@ -316,6 +320,7 @@ public sealed class TradePopups
     {
         var body = Popup(_seat, "Your offer", out var panel);
         var rows = Rows(body, (-1, false, o.Get), (_seat, true, o.Give));
+        AddDealNote(body, slot);
         Answers(rows, o, except: new[] { _seat }, v, slot, legal, clickable: true);
         var buttons = Buttons(body);
         bool yourTurn = v.CurrentPlayer == _seat && v.Phase == Phase.Main;
@@ -427,6 +432,16 @@ public sealed class TradePopups
         row.AddThemeConstantOverride("separation", 6);
         body.AddChild(row);
         return row;
+    }
+
+    private void AddDealNote(VBoxContainer body, int slot)
+    {
+        if (DealNote?.Invoke(slot) is not { } note)
+            return;
+        var label = Ui.Label(note, 13, Ui.BadgeBlue);
+        label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        label.CustomMinimumSize = new Vector2(Width - 30, 0);
+        body.AddChild(label);
     }
 
     private static Label Note(string text)

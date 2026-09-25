@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Catan.AI;
+using Catan.AI.Talk;
 using Catan.Core;
 using Catan.UI;
 using Godot;
@@ -19,7 +20,8 @@ public partial class GameScreen : Control
 {
     // Layout (1600×900).
     private static readonly Rect2 BoardRect = new(140, 18, 1010, 744);
-    private static readonly Rect2 LogRect = new(1258, 4, 338, 378);
+    private static readonly Rect2 LogRect = new(1258, 4, 338, 200);
+    private static readonly Rect2 ChatRect = new(1258, 208, 338, 174);
     private static readonly Rect2 BankRect = new(1258, 388, 338, 70);
     private const float RowTop = 464, RowHeight = 86, RowGap = 4;
     private static readonly Rect2 YouRect = new(1258, 734, 338, 162);
@@ -47,6 +49,8 @@ public partial class GameScreen : Control
     private readonly PlayerCard[] _playerCards = new PlayerCard[GameConstants.PlayerCount];
     private HandBar _hand = null!;
     private LogPanel _log = null!;
+    private ChatPanel _chat = null!;
+    private TableTalk _talk = null!;
     private ActionBar _bar = null!;
     private DiceView _dice = null!;
     private DevCardPopup _devPopup = null!;
@@ -68,8 +72,15 @@ public partial class GameScreen : Control
     private BuildMode _mode;
     private bool _tradeOpen, _shownOnce, _countsPending;
     private int _loggedEvents;
-    private (int Player, int Turn) _turnKey = (-1, -1);
-    private DateTime _turnStarted = DateTime.UtcNow;
+    private readonly TurnClock _clock = new();
+
+    /// <summary>Your time ran out and the game made a move for you; cleared when any move is applied.</summary>
+    private bool _timeUpHandled;
+
+    /// <summary>Your open offers that every opponent declined, and when that was first seen (they close a few seconds later).</summary>
+    private readonly Dictionary<(int Slot, TradeOffer Offer), DateTime> _declinedOffers = new();
+
+    private const double DeclinedOfferCloseSeconds = 3;
 
     /// <summary>When a board click matches several legal actions (e.g. two players to rob), they're offered as buttons.</summary>
     private List<GameAction>? _choices;
@@ -98,6 +109,7 @@ public partial class GameScreen : Control
         _text = new GameText(_setup.Colors, _setup.HumanSeat);
         _human = new HumanAgent("You", TimeSpan.FromSeconds(_options.ResponseWindowSeconds));
         _human.PromptChanged += OnPromptChanged;
+        _talk = CreateTalk(resume);
         string? loadError = null;
         try
         {
@@ -110,6 +122,7 @@ public partial class GameScreen : Control
             resume = null;
             _setup = GameSetup.Create(_options.Seed ?? (ulong)System.Random.Shared.NextInt64());
             _text = new GameText(_setup.Colors, _setup.HumanSeat);
+            _talk = CreateTalk(null);
             _runner = CreateRunner(null);
         }
         _runner.ActionApplied += OnActionApplied;
@@ -128,6 +141,11 @@ public partial class GameScreen : Control
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
         if (loadError is not null)
             _log.AddNote($"That save couldn't be loaded ({loadError}). Started a new game instead.", Ui.Bad);
+        _chat = new ChatPanel(this, ChatRect, _setup.Colors, _setup.HumanSeat);
+        foreach (var line in _talk.Lines)
+            _chat.Add(line);
+        _talk.LineAdded += _chat.Add;
+        _chat.Sent += OnChatSent;
         _bank = new BankView { Position = BankRect.Position, Size = BankRect.Size };
         AddChild(_bank);
         int row = 0;
@@ -154,6 +172,7 @@ public partial class GameScreen : Control
         _popups = new TradePopups(this, PopupsTopRight, _setup.Colors, _setup.HumanSeat, _text, Submit, WhyNot,
             edit: (slot, o) => { _proposal.StartEdit(slot, o); _tradeOpen = true; Refresh(); },
             counter: (slot, o) => { _proposal.StartCounter(slot, o); Refresh(); });
+        _popups.DealNote = DealNote;
 
         // Sevens and dev cards: discard from your hand, pick who to rob, play a card from your hand.
         _discardUi = new DiscardPanel(this, DiscardRect, _discard,
@@ -235,10 +254,10 @@ public partial class GameScreen : Control
     {
         ulong seed = _setup.BotSeed + (ulong)seat + (ulong)turnOffset * 7919;
         if (System.Environment.GetEnvironmentVariable("CATAN_BOT") == "smart")
-            return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed);
+            return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed) { Table = _talk };
         int ms = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_THINK_MS"), out int t) && t > 0 ? t : _autoplayActions > 0 && !ForceAnimate ? 50 : 500;
         var calibration = WinModel.Load(ProjectSettings.GlobalizePath("res://bots/calibration.json"));
-        return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed);
+        return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed) { Table = _talk };
     }
 
     private IPlayerAgent HumanSeatAgent() => _autoplayActions <= 0 ? _human
@@ -256,6 +275,63 @@ public partial class GameScreen : Control
     {
         string path = ProjectSettings.GlobalizePath("res://bots/best.json");
         return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
+    }
+
+    /// <summary>The table talk for this game: new, or the one saved with the game being continued.</summary>
+    private TableTalk CreateTalk(GameRecord? resume)
+    {
+        var names = _setup.Colors.Select(c => c.ToString().ToLowerInvariant()).ToArray();
+        if (resume?.TableTalk is { } json)
+        {
+            try
+            {
+                return TableTalk.FromJson(names, json);
+            }
+            catch (Exception ex) when (ex is ArgumentException or System.Text.Json.JsonException)
+            {
+                GD.PushWarning($"Saved table talk couldn't be read: {ex.Message}");
+            }
+        }
+        return new TableTalk(names);
+    }
+
+    /// <summary>The promises riding on the offer in <paramref name="slot"/>, in words for its card ("Deal: Orange won't block you").</summary>
+    private string? DealNote(int slot)
+    {
+        if (_talk.DealOn(slot) is not { } d)
+            return null;
+        string Who(int seat) => seat < 0 ? "whoever takes it" : _text.Seat(seat);
+        string Terms(IReadOnlyList<PromiseTerm> terms) => string.Join(" or ", terms.Select(t => t.Kind switch
+        {
+            PromiseKind.NoBlock => "block",
+            PromiseKind.NoSteal => "steal from",
+            _ => $"take the {Spots.Name(_runner.State.Board, t.Vertex)} spot from",
+        }).Distinct());
+        var parts = new List<string>();
+        if (d.CurrentPromises.Count > 0)
+            parts.Add($"{Who(d.Current)} won't {Terms(d.CurrentPromises)} {Who(d.Partner).ToLowerInvariant()}");
+        if (d.PartnerPromises.Count > 0)
+            parts.Add($"{Who(d.Partner)} won't {Terms(d.PartnerPromises)} {Who(d.Current).ToLowerInvariant()}");
+        return parts.Count == 0 ? null : $"Deal: {string.Join("; ", parts)}";
+    }
+
+    /// <summary>The game so far, with its table talk, for saving.</summary>
+    private GameRecord Record()
+    {
+        var record = _runner.ToRecord(_setup.Seed);
+        record.TableTalk = _talk.ToJson();
+        return record;
+    }
+
+    /// <summary>
+    /// You said something in the chat. It's addressed to the current player when it's someone else's turn (they're the one
+    /// who can trade), and to anyone on your own turn, unless you name a colour.
+    /// </summary>
+    private void OnChatSent(string text)
+    {
+        var s = _runner.State;
+        int target = s.CurrentPlayer == _setup.HumanSeat ? -1 : s.CurrentPlayer;
+        _talk.Hear(_setup.HumanSeat, text, s, target);
     }
 
     private void StartGame() => RunGame();
@@ -311,21 +387,27 @@ public partial class GameScreen : Control
 
     private void OnActionApplied(GameAction action, IReadOnlyList<GameEvent> events)
     {
+        _talk.OnAction(_runner.State, action);
+        _clock.OnAction(action, _runner.State.CurrentPlayer, DateTime.UtcNow);
+        _timeUpHandled = false;
         // Autosave at the end of each of your turns, and when the game ends.
         if (!Autoplaying && events.Any(e => e is TurnEnded t && t.Seat == _setup.HumanSeat || e is GameEnded))
-            GameSession.Store.Autosave(_runner.ToRecord(_setup.Seed));
+            GameSession.Store.Autosave(Record());
         Refresh();
     }
 
     public override void _Process(double delta)
     {
+        _chat.Tick();
         if (_human.Prompt is { IsOptional: true, Deadline: { } deadline })
         {
             _popups.Tick(deadline, _human.ResponseWindow);
             _bar.SetTimer(Clock(Math.Max(0, (deadline - DateTime.UtcNow).TotalSeconds)));
         }
         else if (!_runner.IsOver)
-            _bar.SetTimer(Clock((DateTime.UtcNow - _turnStarted).TotalSeconds));
+            _bar.SetTimer(Clock(_clock.Remaining(DateTime.UtcNow)));
+        OnTimeUp();
+        CloseDeclinedOffers();
         // "Orange is thinking…" appears while a bot works on a decision (it thinks on another thread).
         if (_human.Prompt is null && _view is { } v && !_runner.IsOver)
         {
@@ -334,12 +416,67 @@ public partial class GameScreen : Control
         }
     }
 
-    private static string Clock(double seconds) => $"{(int)seconds / 60:00}:{(int)seconds % 60:00}";
+    private static string Clock(double seconds)
+    {
+        int whole = (int)Math.Ceiling(seconds); // a countdown shows 00:05 for its whole first second
+        return $"{whole / 60:00}:{whole % 60:00}";
+    }
+
+    /// <summary>
+    /// When your time runs out: the game rolls for you, or ends your turn; anything else it must have first (moving the robber,
+    /// a discard, free roads, a setup placement) is picked the way a bot would.
+    /// </summary>
+    private void OnTimeUp()
+    {
+        if (_timeUpHandled || Autoplaying || _runner.IsOver || _view is not { } v || v.CurrentPlayer != _setup.HumanSeat
+            || _human.Prompt is not { IsOptional: false } prompt || !_clock.Expired(DateTime.UtcNow))
+            return;
+        _timeUpHandled = true;
+        var legal = prompt.Legal;
+        GameAction? move = legal.FirstOrDefault(a => a.Type == ActionType.RollDice) is { Type: ActionType.RollDice } roll ? roll
+            : v.Phase == Phase.Main && legal.FirstOrDefault(a => a.Type == ActionType.EndTurn) is { Type: ActionType.EndTurn } end ? end
+            : null;
+        move ??= new SmartBot(BotWeightsFile(), SmartBotSettings.Training, _setup.BotSeed + 202).DecideAsync(prompt.View, legal, default).Result;
+        CloseProposal();
+        _discard.Clear();
+        _queued.Clear();
+        _pending = null;
+        _bar.SetStatus("Time's up", v.Phase == Phase.PreRoll ? "Rolled for you." : "Your turn was finished for you.");
+        Submit(move.Value);
+    }
+
+    /// <summary>Your offers that every opponent declined close by themselves after a few seconds.</summary>
+    private void CloseDeclinedOffers()
+    {
+        if (_runner.IsOver || _view is not { } v || v.Phase != Phase.Main || v.CurrentPlayer != _setup.HumanSeat
+            || _human.Prompt is not { IsOptional: false })
+        {
+            _declinedOffers.Clear();
+            return;
+        }
+        var now = DateTime.UtcNow;
+        for (int slot = 0; slot < v.Offers.Length; slot++)
+        {
+            var offer = v.Offers[slot];
+            bool allDeclined = offer.IsActive && !offer.IsCounter && offer.From == _setup.HumanSeat
+                && Enumerable.Range(0, GameConstants.PlayerCount).All(seat => seat == offer.From || offer.ResponseOf(seat) == TradeOffer.Declined);
+            if (!allDeclined)
+                continue;
+            if (!_declinedOffers.TryGetValue((slot, offer), out var since))
+                _declinedOffers[(slot, offer)] = now;
+            else if ((now - since).TotalSeconds >= DeclinedOfferCloseSeconds)
+            {
+                _declinedOffers.Remove((slot, offer));
+                Submit(new GameAction(ActionType.CancelOffer, _setup.HumanSeat, slot));
+                return; // one per frame: the view refreshes after each move
+            }
+        }
+    }
 
     public override void _Input(InputEvent @event)
     {
         // Space rolls the dice, or ends your turn. Handled before buttons see it (a focused button would take Space too).
-        if (@event is InputEventKey { Keycode: Key.Space, Pressed: true, Echo: false } && _view is { } v && _human.Prompt is { IsOptional: false } prompt)
+        if (@event is InputEventKey { Keycode: Key.Space, Pressed: true, Echo: false } && !_chat.Typing && _view is { } v && _human.Prompt is { IsOptional: false } prompt)
         {
             var legal = prompt.Legal;
             if (ActionBarModel.State(BarItem.Roll, v, legal).Enabled)
@@ -377,7 +514,7 @@ public partial class GameScreen : Control
 
     private void SaveGame()
     {
-        string path = GameSession.Store.Save(_runner.ToRecord(_setup.Seed), DateTime.Now);
+        string path = GameSession.Store.Save(Record(), DateTime.Now);
         _log.AddNote($"Saved as {System.IO.Path.GetFileNameWithoutExtension(path)}.");
     }
 
@@ -412,11 +549,7 @@ public partial class GameScreen : Control
             return;
         var view = PlayerView.From(_runner.State, _setup.HumanSeat, _runner.Log);
         _view = view;
-        if ((view.CurrentPlayer, view.TurnNumber) != _turnKey)
-        {
-            _turnKey = (view.CurrentPlayer, view.TurnNumber);
-            _turnStarted = DateTime.UtcNow;
-        }
+        _clock.Update(view, DateTime.UtcNow);
         _board.Show(view, _setup.Colors);
         bool discarding = _human.Prompt is { IsOptional: false } && view.Phase == Phase.Discard;
         if (discarding)
@@ -590,9 +723,30 @@ public partial class GameScreen : Control
 
     private void OnBoardClicked(BoardHit hit)
     {
-        if (_human.Prompt is not { IsOptional: false } prompt || _view is null)
+        // Typing in the chat: Shift+click puts a corner's numbers into the message. A plain click still plays (a click that
+        // does nothing in the game puts them in too).
+        bool typing = _chat.Typing;
+        bool spot = typing && hit.Kind == HitKind.Vertex;
+        if (spot && Input.IsKeyPressed(Key.Shift))
+        {
+            _chat.Insert(Spots.Name(_runner.State.Board, hit.Id));
             return;
+        }
+        if (_human.Prompt is not { IsOptional: false } prompt || _view is null)
+        {
+            if (spot)
+                _chat.Insert(Spots.Name(_runner.State.Board, hit.Id));
+            return;
+        }
         var matches = ActionBarModel.BoardActions(_mode, _view, prompt.Legal).Where(a => TargetOf(a) == hit).ToList();
+        bool plays = matches.Count > 0 || (_mode == BuildMode.None && ActionBarModel.QuickBuilds(_view, prompt.Legal).Any(a => TargetOf(a) == hit));
+        if (spot && !plays)
+        {
+            _chat.Insert(Spots.Name(_runner.State.Board, hit.Id));
+            return;
+        }
+        if (typing)
+            _chat.Leave();
         if (matches.Count == 1)
             Submit(matches[0]);
         else if (matches.Count > 1)
