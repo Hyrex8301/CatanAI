@@ -22,6 +22,9 @@ public sealed record GameOptions
     /// <summary>How long a bot's trade offer waits for the human's answer before it's skipped.</summary>
     public double ResponseWindowSeconds { get; init; } = 20;
 
+    /// <summary>Placement practice: rate each placement as you make it (false: all at the end of the opening).</summary>
+    public bool PracticeFeedbackEach { get; init; } = true;
+
     /// <summary>Your colour; null = a random one each game.</summary>
     public SeatColor? PreferredColor { get; init; }
 

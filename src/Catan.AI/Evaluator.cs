@@ -33,6 +33,8 @@ public sealed class Evaluator
 
     private static readonly int FRobberMagnet = I("robber_magnet"), FPublicLead = I("public_lead");
 
+    private static readonly int FProspectPips = I("prospect_pips"), FProspects = I("prospects");
+
     private static readonly int FMonopolyHeld = I("monopoly_held"), FYopHeld = I("yop_held"), FRbHeld = I("rb_held"),
         FNumberDiversity = I("number_diversity"), FHarbor3Prod = I("harbor_3to1_prod"), FStrategyFocus = I("strategy_focus");
 
@@ -192,6 +194,35 @@ public sealed class Evaluator
                 AddSpot(spots, bestSpot, o2, pips);
         }
 
+        // The race for spots. For each open spot, how many roads each seat is from it (SpotDistances). A spot is a seat's
+        // prospect if it is 1 or 2 roads away and the seat gets there first: nobody closer, and on a tie whoever plays sooner
+        // from now. In the opening, players still to place a settlement can put it anywhere, so the best open spots (as many
+        // as the others still have to place) are likely gone and don't count.
+        Span<int> prospectBest = stackalloc int[Seats];
+        Span<int> prospectCount = stackalloc int[Seats];
+        Span<int> distance = stackalloc int[Seats];
+        Span<int> openingRank = stackalloc int[Topology.VertexCount];
+        Span<int> openingLeft = stackalloc int[Seats];
+        bool opening = OpeningRanks(s, openingRank, openingLeft);
+        int openingTotal = 0;
+        for (int seat = 0; seat < Seats; seat++)
+            openingTotal += openingLeft[seat];
+        for (int v = 0; v < Topology.VertexCount; v++)
+        {
+            if (!IsFreeSpot(s, v))
+                continue;
+            SpotDistances(s, v, distance);
+            int winner = RaceWinner(s, distance);
+            if (winner < 0 || (opening && openingRank[v] < openingTotal - openingLeft[winner]))
+                continue;
+            int pips = 0;
+            for (int i = 0; i < 3; i++)
+                if (VertexHexes[v * 3 + i] is var h and >= 0)
+                    pips += board.PipsAt(h);
+            prospectCount[winner]++;
+            prospectBest[winner] = Math.Max(prospectBest[winner], pips);
+        }
+
         // Dead roads: road ends (no building or other road of ours there) with no free spot at the end or one road further.
         Span<int> dead = stackalloc int[Seats];
         for (int e = 0; e < Topology.EdgeCount; e++)
@@ -276,6 +307,8 @@ public sealed class Evaluator
                 if (other != seat)
                     otherPublic = Math.Max(otherPublic, s.PublicVP[other]);
             row[FPublicLead] = Math.Clamp(s.PublicVP[seat] - otherPublic, 0, 5);
+            row[FProspectPips] = prospectBest[seat];
+            row[FProspects] = Math.Min(prospectCount[seat], 6);
             row[FMonopolyHeld] = s.DevHand[seat * D + (int)DevCardType.Monopoly];
             row[FYopHeld] = s.DevHand[seat * D + (int)DevCardType.YearOfPlenty];
             row[FRbHeld] = s.DevHand[seat * D + (int)DevCardType.RoadBuilding];
@@ -319,6 +352,95 @@ public sealed class Evaluator
             cards += s.DevHand[seat * D + t];
         return cards;
     }
+
+    /// <summary>
+    /// How many roads each seat is from the open spot <paramref name="v"/>: 1 if one of its roads touches it, 2 if a free
+    /// edge leads from it to a corner the seat's roads reach, 3 for further (not counted). The race for spots.
+    /// </summary>
+    public static void SpotDistances(GameState s, int v, Span<int> distance)
+    {
+        distance.Fill(3);
+        for (int i = 0; i < 3; i++)
+        {
+            int e = VertexEdges[v * 3 + i];
+            if (e >= 0 && s.EdgeOwner[e] >= 0)
+                distance[s.EdgeOwner[e]] = 1;
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            int e = VertexEdges[v * 3 + i], u = VertexNeighbors[v * 3 + i];
+            if (e < 0 || u < 0 || s.EdgeOwner[e] >= 0)
+                continue; // no edge, or someone's road already (counted above)
+            for (int j = 0; j < 3; j++)
+            {
+                int e2 = VertexEdges[u * 3 + j];
+                if (e2 >= 0 && e2 != e && s.EdgeOwner[e2] >= 0)
+                    distance[s.EdgeOwner[e2]] = Math.Min(distance[s.EdgeOwner[e2]], 2);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Who gets to an open spot first, from each seat's road distance to it (<see cref="SpotDistances"/>): the closest seat
+    /// within 2 roads, and on a tie whoever plays sooner from now (the current player first). -1 if nobody is within 2.
+    /// </summary>
+    public static int RaceWinner(GameState s, ReadOnlySpan<int> distance)
+    {
+        int winner = -1, best = int.MaxValue;
+        for (int seat = 0; seat < Seats; seat++)
+        {
+            if (distance[seat] > 2)
+                continue;
+            int key = distance[seat] * Seats + (seat - s.CurrentPlayer + Seats) % Seats;
+            if (key < best)
+                (best, winner) = (key, seat);
+        }
+        return winner;
+    }
+
+    /// <summary>
+    /// In the opening: each open spot's rank by pips (0 = best; others <see cref="int.MaxValue"/>) and how many opening
+    /// settlements each seat still has to place. A seat's road can't claim a spot while others still have settlements to
+    /// place anywhere: the best few open spots (as many as the others have left) are likely taken. False outside the opening.
+    /// </summary>
+    public static bool OpeningRanks(GameState s, Span<int> rank, Span<int> left)
+    {
+        if (s.Phase is not (Phase.SetupSettlement or Phase.SetupRoad))
+            return false;
+        left.Fill(2);
+        for (int v = 0; v < Topology.VertexCount; v++)
+            if (s.VertexOwner[v] >= 0)
+                left[s.VertexOwner[v]]--;
+        Span<int> spots = stackalloc int[Topology.VertexCount];
+        Span<int> pips = stackalloc int[Topology.VertexCount];
+        int count = 0;
+        rank.Fill(int.MaxValue);
+        for (int v = 0; v < Topology.VertexCount; v++)
+        {
+            if (!IsFreeSpot(s, v))
+                continue;
+            int p = 0;
+            for (int i = 0; i < 3; i++)
+                if (VertexHexes[v * 3 + i] is var h and >= 0)
+                    p += s.Board.PipsAt(h);
+            // Insert in order, most pips first (ties: lower vertex first).
+            int at = count++;
+            while (at > 0 && pips[at - 1] < p)
+            {
+                spots[at] = spots[at - 1];
+                pips[at] = pips[at - 1];
+                at--;
+            }
+            spots[at] = v;
+            pips[at] = p;
+        }
+        for (int i = 0; i < count; i++)
+            rank[spots[i]] = i;
+        return true;
+    }
+
+    /// <summary>Empty, and no building next to it (the distance rule): someone could settle there.</summary>
+    public static bool IsOpenSpot(GameState s, int v) => IsFreeSpot(s, v);
 
     /// <summary>True if <paramref name="v"/> is where <paramref name="seat"/>'s road <paramref name="edge"/> stops: no building or other road of theirs.</summary>
     private static bool IsRoadEnd(GameState s, int v, int edge, int seat)

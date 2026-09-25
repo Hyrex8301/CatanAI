@@ -42,6 +42,10 @@ public sealed class BotWeights
         // dev_cards alone says); how many different dice numbers our buildings touch; a 3:1 port scaled by our production
         // (worth little while we produce little); and our strongest single plan (cities, roads or dev cards).
         ["monopoly_held"] = 0, ["yop_held"] = 0, ["rb_held"] = 0, ["number_diversity"] = 0, ["harbor_3to1_prod"] = 0, ["strategy_focus"] = 0,
+        // The race for spots: open spots a player could settle with at most one more road, unless an opponent is closer
+        // (fewer roads away): the best one's pips and how many. Pointing roads at good spots, and "plowing" toward a spot
+        // an opponent wants (it drops out of their prospects), both show up here.
+        ["prospect_pips"] = 0, ["prospects"] = 0,
     };
 
     /// <summary>
@@ -62,6 +66,7 @@ public sealed class BotWeights
         "settles_stuck", "stuck_city_combo", "stuck_city_missing",
         "robber_magnet", "public_lead",
         "monopoly_held", "yop_held", "rb_held", "number_diversity", "harbor_3to1_prod", "strategy_focus",
+        "prospect_pips", "prospects",
     };
 
     private readonly double[] _values;

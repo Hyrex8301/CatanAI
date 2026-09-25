@@ -177,6 +177,48 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void ARoadPointedAtAnOpenSpotMakesItAProspect()
+    {
+        // A settlement alone: every spot is at least two roads away (the first corner is too close to settle).
+        var bare = new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, 0, Corner.N)).Build();
+        Assert.Equal(0, F(bare, 0, "prospects"));
+
+        // Road N -> NE: the spot at SE is one more road away, so it is a prospect worth its pips.
+        var pointed = new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, 0, Corner.N)).Road(0, Edge(0, 0, Side.NE)).Build();
+        Assert.True(F(pointed, 0, "prospects") >= 1);
+        int se = Vertex(0, 0, Corner.SE);
+        int sePips = Enumerable.Range(0, 3).Select(i => VertexHexes[se, i]).Where(h => h >= 0).Sum(h => pointed.Board.PipsAt(h));
+        Assert.True(F(pointed, 0, "prospect_pips") >= sePips);
+        Assert.Equal(0, F(pointed, 1, "prospects")); // nobody else is near
+    }
+
+    [Fact]
+    public void ATiedRaceGoesToWhoeverPlaysSooner()
+    {
+        var s = new StateBuilder(TestBoards.Standard).Phase(Phase.Main, current: 2).Build();
+        Assert.Equal(2, Evaluator.RaceWinner(s, new[] { 3, 2, 2, 3 }));  // seat 2 plays now
+        Assert.Equal(3, Evaluator.RaceWinner(s, new[] { 1, 3, 3, 1 }));  // after 2 comes 3, then 0
+        Assert.Equal(1, Evaluator.RaceWinner(s, new[] { 2, 1, 2, 2 }));  // closer beats sooner
+        Assert.Equal(-1, Evaluator.RaceWinner(s, new[] { 3, 3, 3, 3 })); // nobody within two roads
+    }
+
+    [Fact]
+    public void InTheOpeningTheBestOpenSpotsAreLikelyTaken()
+    {
+        var s = new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, 0, Corner.N)).Phase(Phase.SetupRoad, current: 0).Build();
+        var rank = new int[VertexCount];
+        var left = new int[4];
+        Assert.True(Evaluator.OpeningRanks(s, rank, left));
+        Assert.Equal(new[] { 1, 2, 2, 2 }, left);
+        int best = Enumerable.Range(0, VertexCount).First(v => rank[v] == 0);
+        int bestPips = Enumerable.Range(0, 3).Select(i => VertexHexes[best, i]).Where(h => h >= 0).Sum(h => s.Board.PipsAt(h));
+        Assert.All(Enumerable.Range(0, VertexCount).Where(v => rank[v] != int.MaxValue),
+            v => Assert.True(Enumerable.Range(0, 3).Select(i => VertexHexes[v, i]).Where(h => h >= 0).Sum(h => s.Board.PipsAt(h)) <= bestPips));
+        s.Phase = Phase.Main;
+        Assert.False(Evaluator.OpeningRanks(s, rank, left)); // only in the opening
+    }
+
+    [Fact]
     public void RivalsForTheSameAwardCountExtra()
     {
         var rivalWeights = new Evaluator(BotWeights.FromJson("""{ "rival": 1 }"""));

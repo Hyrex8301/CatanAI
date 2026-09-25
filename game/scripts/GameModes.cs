@@ -18,15 +18,20 @@ public static class GameModes
             GameSession.Resume = null;
             tree.ChangeSceneToFile("res://scenes/Game.tscn");
         }),
-        new("Placement practice", "Place your opening settlements; the bots rate every spot and say why.", _ => { },
+        new("Placement practice", "The whole opening in snake order; the bots rate each of your settlements and roads and say why.", PracticeSetup,
             tree => tree.ChangeSceneToFile("res://scenes/Practice.tscn")),
     };
 
     /// <summary>Normal game: your colour, and the board (a new random one, or a seed to get the same board again).</summary>
     private static void NormalSetup(VBoxContainer into)
     {
-        var o = GameSession.Options;
+        AddColourRow(into);
+        AddBoardRow(into);
+    }
 
+    private static void AddColourRow(VBoxContainer into)
+    {
+        var o = GameSession.Options;
         var colour = new OptionButton();
         colour.AddItem("Random");
         foreach (var c in Enum.GetValues<SeatColor>())
@@ -34,7 +39,25 @@ public static class GameModes
         colour.Selected = o.PreferredColor is { } chosen ? (int)chosen + 1 : 0;
         colour.ItemSelected += index => GameSession.SaveSettings(GameSession.Options with { PreferredColor = index == 0 ? null : (SeatColor)(index - 1) });
         into.AddChild(Ui.SettingRow("Your colour", colour));
+    }
 
+    /// <summary>Placement practice: the board, and whether each placement is rated as you make it or all at the end.</summary>
+    private static void PracticeSetup(VBoxContainer into)
+    {
+        AddColourRow(into);
+        AddBoardRow(into);
+        var feedback = new OptionButton();
+        feedback.AddItem("After each placement");
+        feedback.AddItem("At the end");
+        feedback.Selected = GameSession.Options.PracticeFeedbackEach ? 0 : 1;
+        feedback.ItemSelected += index => GameSession.SaveSettings(GameSession.Options with { PracticeFeedbackEach = index == 0 });
+        into.AddChild(Ui.SettingRow("Feedback", feedback));
+    }
+
+    /// <summary>The board: a new random one each time, or a seed (the same seed always deals the same board).</summary>
+    private static void AddBoardRow(VBoxContainer into)
+    {
+        var o = GameSession.Options;
         var board = new OptionButton();
         board.AddItem("Random");
         board.AddItem("Seed");
