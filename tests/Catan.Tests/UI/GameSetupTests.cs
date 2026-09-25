@@ -15,6 +15,19 @@ public class GameSetupTests
     }
 
     [Fact]
+    public void AChosenColourComesFromTheSeedAlone()
+    {
+        ulong next = 1000;
+        foreach (var colour in Enum.GetValues<SeatColor>())
+        {
+            ulong seed = GameSetup.SeedFor(colour, () => next++);
+            Assert.Equal(colour, GameSetup.Create(seed).HumanColor); // and so a saved game (seed only) loads the same
+        }
+        ulong any = GameSetup.SeedFor(null, () => 77);
+        Assert.Equal(77UL, any);
+    }
+
+    [Fact]
     public void ColorsArePermutedAndSeatsVary()
     {
         var seats = new HashSet<int>();

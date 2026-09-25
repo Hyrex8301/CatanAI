@@ -13,6 +13,7 @@ public sealed class HandBar
 {
     public static readonly Vector2 CardSize = new(58, 88);
 
+    private readonly Panel _bar;
     private readonly HBoxContainer _row;
     private readonly List<CardView> _cards = new();
 
@@ -21,7 +22,7 @@ public sealed class HandBar
 
     public HandBar(Control parent, Rect2 rect)
     {
-        var bar = new Panel { Position = rect.Position, Size = rect.Size, MouseFilter = Control.MouseFilterEnum.Stop };
+        var bar = _bar = new Panel { Position = rect.Position, Size = rect.Size, MouseFilter = Control.MouseFilterEnum.Stop };
         var style = Ui.PanelStyle(Ui.Cream, radius: 6);
         style.ShadowSize = 3;
         bar.AddThemeStyleboxOverride("panel", style);
@@ -29,6 +30,13 @@ public sealed class HandBar
         _row = new HBoxContainer { Position = new Vector2(12, (rect.Size.Y - CardSize.Y) / 2 - 3), Size = new Vector2(rect.Size.X - 24, CardSize.Y) };
         _row.AddThemeConstantOverride("separation", 6);
         bar.AddChild(_row);
+    }
+
+    /// <summary>Widens the bar (a wide window gives the hand more room up to the buttons).</summary>
+    public void SetWidth(float width)
+    {
+        _bar.Size = new Vector2(width, _bar.Size.Y);
+        _row.Size = new Vector2(width - 24, _row.Size.Y);
     }
 
     public void Update(IReadOnlyList<CardStack> stacks)

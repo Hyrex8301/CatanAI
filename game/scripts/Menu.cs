@@ -15,15 +15,39 @@ public partial class Menu : Control
     private static readonly int[] Windows = { 10, 20, 30, 60 };
 
     private VBoxContainer _column = null!;
+    private PanelContainer _panel = null!;
+    private ScrollContainer _scroll = null!;
+    private Vector2 _extra;
     private VBoxContainer _saves = null!;
     private VBoxContainer _settings = null!;
+
+    /// <summary>
+    /// Sizes the menu to its contents, up to the window's height (then it scrolls), and keeps it centred up and down.
+    /// Every frame, since opening a section changes its height.
+    /// </summary>
+    public override void _Process(double delta)
+    {
+        const float Margin = 24, Padding = 52; // the panel's margins, top and bottom together
+        float window = ScreenLayout.Design.Y + _extra.Y;
+        float content = _column.GetCombinedMinimumSize().Y;
+        float height = Math.Min(content, window - 2 * Margin - Padding);
+        _scroll.CustomMinimumSize = new Vector2(428, height);
+        _panel.Size = new Vector2(480, height + Padding);
+        _panel.Position = new Vector2(1040 + _extra.X, Math.Max(Margin, (window - _panel.Size.Y) / 2));
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (GameSession.HandleFullscreenKey(@event))
+            GetViewport().SetInputAsHandled();
+    }
 
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
-        var background = new ColorRect { Color = Ui.Sea, MouseFilter = MouseFilterEnum.Ignore };
-        background.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(background);
+        if (GameSession.Options.Fullscreen != (DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen))
+            GameSession.SetFullscreen(GameSession.Options.Fullscreen); // as last time
+        AddChild(new SeaView());
 
         // A board to look at: a new random one each visit, no pieces.
         var board = new BoardView { Modulate = new Color(1, 1, 1, 0.92f) };
@@ -35,10 +59,24 @@ public partial class Menu : Control
         var panel = new PanelContainer { Position = new Vector2(1040, 110), Size = new Vector2(480, 0) };
         panel.AddThemeStyleboxOverride("panel", Ui.PanelStyle(Ui.Cream, radius: 14, margin: 26));
         AddChild(panel);
-        _column = new VBoxContainer();
+        _panel = panel;
+        // Fill any window: the board takes the extra room, the menu stays on the right (FitPanel centres it up and down).
+        ScreenLayout.Watch(this, extra =>
+        {
+            board.Setup(new Rect2(40, 40, 960 + extra.X, 820 + extra.Y));
+            _extra = extra;
+        });
+        // The menu scrolls when Load game or Settings makes it taller than the window.
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        panel.AddChild(_scroll);
+        var gutter = new MarginContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; // room for the scrollbar
+        gutter.AddThemeConstantOverride("margin_right", 14);
+        _scroll.AddChild(gutter);
+        _column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _column.AddThemeConstantOverride("separation", 12);
-        panel.AddChild(_column);
+        gutter.AddChild(_column);
 
+        _column.AddChild(new TitleEmblem());
         var title = Ui.Label("Catan AI", 52);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         _column.AddChild(title);
@@ -58,9 +96,17 @@ public partial class Menu : Control
         AddButton("Placement practice", () => GetTree().ChangeSceneToFile("res://scenes/Practice.tscn"));
         AddButton("Settings", () => Toggle(_settings, FillSettings));
         _settings = Section();
-        AddButton("Debug viewer", () => GetTree().ChangeSceneToFile("res://scenes/Debug.tscn"));
+        var help = new HelpPanel();
+        AddButton("How to play", help.Open);
+        if (System.Environment.GetEnvironmentVariable("CATAN_DEV") == "1") // developer tool: only with CATAN_DEV=1
+            AddButton("Debug viewer", () => GetTree().ChangeSceneToFile("res://scenes/Debug.tscn"));
         AddButton("Quit", () => GetTree().Quit());
+        AddChild(help); // over everything
+        if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_HELP") == "1")
+            help.Open(); // developer screenshots
         first.GrabFocus();
+        if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_SETTINGS") == "1")
+            Toggle(_settings, FillSettings); // developer screenshots
         DevShots.Run(this);
     }
 
@@ -154,6 +200,23 @@ public partial class Menu : Control
         var friendly = new CheckBox { ButtonPressed = o.FriendlyRobber, TooltipText = "The robber can't be placed next to a player with 2 or fewer points" };
         friendly.Toggled += on => Save(GameSession.Options with { FriendlyRobber = on });
         _settings.AddChild(SettingRow("Friendly robber", friendly));
+
+        var colour = new OptionButton();
+        colour.AddItem("Random");
+        foreach (var c in Enum.GetValues<SeatColor>())
+            colour.AddItem(c.ToString());
+        colour.Selected = o.PreferredColor is { } chosen ? (int)chosen + 1 : 0;
+        colour.ItemSelected += index => Save(GameSession.Options with { PreferredColor = index == 0 ? null : (SeatColor)(index - 1) });
+        _settings.AddChild(SettingRow("Your colour", colour));
+
+        var fullscreen = new CheckBox { ButtonPressed = o.Fullscreen, TooltipText = "F11 switches too" };
+        fullscreen.Toggled += on => GameSession.SetFullscreen(on);
+        _settings.AddChild(SettingRow("Full screen", fullscreen));
+
+        var volume = new HSlider { MinValue = 0, MaxValue = 100, Step = 5, Value = o.Volume * 100, CustomMinimumSize = new Vector2(160, 0), TooltipText = "0 turns sound off" };
+        volume.ValueChanged += v => Save(GameSession.Options with { Volume = v / 100 });
+        volume.DragEnded += _ => Sounds.Play(GameSound.YourTurn); // hear the new level
+        _settings.AddChild(SettingRow("Sound volume", volume));
     }
 
     private static HBoxContainer SettingRow(string label, Control control)

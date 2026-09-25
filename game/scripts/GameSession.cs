@@ -21,4 +21,23 @@ public static class GameSession
         Options = options;
         System.IO.File.WriteAllText(SettingsPath, options.ToJson());
     }
+
+    /// <summary>Switches between full screen and a window, and remembers the choice.</summary>
+    public static void ToggleFullscreen() => SetFullscreen(!Options.Fullscreen);
+
+    public static void SetFullscreen(bool on)
+    {
+        DisplayServer.WindowSetMode(on ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed);
+        if (Options.Fullscreen != on)
+            SaveSettings(Options with { Fullscreen = on });
+    }
+
+    /// <summary>F11 toggles full screen on every screen. Returns true if the event was F11.</summary>
+    public static bool HandleFullscreenKey(InputEvent e)
+    {
+        if (e is not InputEventKey { Keycode: Key.F11, Pressed: true, Echo: false })
+            return false;
+        ToggleFullscreen();
+        return true;
+    }
 }

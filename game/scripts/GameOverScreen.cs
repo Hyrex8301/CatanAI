@@ -18,6 +18,8 @@ public partial class GameOverScreen : Control
     private IReadOnlyList<SeatColor> _colors = Array.Empty<SeatColor>();
     private int _viewer;
     private Rect2 _panel;
+    private Vector2 _extra;
+    private HBoxContainer? _buttons;
 
     public event Action? NewGame, MainMenu;
 
@@ -33,17 +35,32 @@ public partial class GameOverScreen : Control
         _summary = summary;
         _colors = colors;
         _viewer = viewer;
-        _panel = new Rect2((new Vector2(1600, 900) - PanelSize) / 2, PanelSize);
         foreach (var child in GetChildren())
             child.QueueFree();
-        var buttons = new HBoxContainer { Position = _panel.Position + new Vector2(PanelSize.X - 520, PanelSize.Y - 70), Size = new Vector2(500, 50) };
+        var buttons = _buttons = new HBoxContainer { Size = new Vector2(500, 50) };
         buttons.AddThemeConstantOverride("separation", 10);
         buttons.Alignment = BoxContainer.AlignmentMode.End;
         buttons.AddChild(Button("View board", () => Visible = false));
         buttons.AddChild(Button("New game", () => NewGame?.Invoke()));
         buttons.AddChild(Button("Main menu", () => MainMenu?.Invoke()));
         AddChild(buttons);
+        Place();
         Visible = true;
+        QueueRedraw();
+    }
+
+    /// <summary>Keeps the panel centred when the window changes size.</summary>
+    public void Relayout(Vector2 extra)
+    {
+        _extra = extra;
+        Place();
+    }
+
+    private void Place()
+    {
+        _panel = new Rect2((ScreenLayout.Design + _extra - PanelSize) / 2, PanelSize);
+        if (_buttons is not null && IsInstanceValid(_buttons))
+            _buttons.Position = _panel.Position + new Vector2(PanelSize.X - 520, PanelSize.Y - 70);
         QueueRedraw();
     }
 
@@ -59,7 +76,7 @@ public partial class GameOverScreen : Control
     {
         if (_summary is not { } s)
             return;
-        DrawRect(new Rect2(Vector2.Zero, new Vector2(1600, 900)), new Color(0, 0, 0, 0.5f));
+        DrawRect(new Rect2(Vector2.Zero, ScreenLayout.Design + _extra), new Color(0, 0, 0, 0.5f));
         DrawStyleBox(Ui.PanelStyle(Ui.Cream, radius: 14), _panel);
         var p = _panel.Position;
 

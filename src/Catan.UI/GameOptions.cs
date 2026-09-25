@@ -19,6 +19,15 @@ public sealed record GameOptions
     /// <summary>How long a bot's trade offer waits for the human's answer before it's skipped.</summary>
     public double ResponseWindowSeconds { get; init; } = 20;
 
+    /// <summary>Your colour; null = a random one each game.</summary>
+    public SeatColor? PreferredColor { get; init; }
+
+    /// <summary>Play in full screen (F11 or the corner button toggles it; remembered between sessions).</summary>
+    public bool Fullscreen { get; init; }
+
+    /// <summary>Sound effects volume, 0 (off) to 1.</summary>
+    public double Volume { get; init; } = 0.4;
+
     /// <summary>Developer: draw every seat's hand and dev cards.</summary>
     public bool ShowAllHands { get; init; }
 
@@ -39,6 +48,7 @@ public sealed record GameOptions
                 VpToWin = Math.Clamp(o.VpToWin, 3, 20),
                 BotDelaySeconds = Math.Clamp(o.BotDelaySeconds, 0, 3),
                 ResponseWindowSeconds = Math.Clamp(o.ResponseWindowSeconds, 5, 120),
+                Volume = Math.Clamp(o.Volume, 0, 1),
             };
         }
         catch (System.Text.Json.JsonException)
@@ -67,6 +77,20 @@ public sealed record GameSetup(ulong Seed, int HumanSeat, IReadOnlyList<SeatColo
     }
 
     public SeatColor HumanColor => Colors[HumanSeat];
+
+    /// <summary>
+    /// A random game seed that gives the human <paramref name="preferred"/> (any seed when null). Everything about a game
+    /// still follows from its seed alone, so saved games load exactly as they were played.
+    /// </summary>
+    public static ulong SeedFor(SeatColor? preferred, Func<ulong> random)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            ulong seed = random();
+            if (preferred is not { } color || Create(seed).HumanColor == color || attempt >= 200)
+                return seed;
+        }
+    }
 
     private static ulong Next(Rng rng) => ((ulong)rng.NextUInt() << 32) | rng.NextUInt();
 }

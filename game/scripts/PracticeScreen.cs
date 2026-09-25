@@ -30,13 +30,17 @@ public partial class PracticeScreen : Control
     private int _boards, _perfect, _round = 1;
     private double _ratingTotal;
 
+    public override void _Input(InputEvent @event)
+    {
+        if (GameSession.HandleFullscreenKey(@event))
+            GetViewport().SetInputAsHandled();
+    }
+
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore; // let clicks through to the board (the panel still stops the ones over it)
-        var background = new ColorRect { Color = Ui.Sea, MouseFilter = MouseFilterEnum.Ignore };
-        background.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(background);
+        AddChild(new SeaView());
 
         string weightsPath = ProjectSettings.GlobalizePath("res://bots/best.json");
         _coach = new PlacementCoach(System.IO.File.Exists(weightsPath) ? BotWeights.Load(weightsPath) : new BotWeights());
@@ -47,7 +51,15 @@ public partial class PracticeScreen : Control
         _board.Overlay = DrawMarkers;
         AddChild(_board);
 
-        AddChild(Ui.Panel(null, PanelRect, out var panel));
+        var side = Ui.Panel(null, PanelRect, out var panel);
+        AddChild(side);
+        // Fill any window: the board takes the extra room, the panel stays on the right at full height.
+        ScreenLayout.Watch(this, extra =>
+        {
+            _board.Setup(new Rect2(BoardRect.Position, BoardRect.Size + extra));
+            side.Position = PanelRect.Position + new Vector2(extra.X, 0);
+            side.Size = PanelRect.Size + new Vector2(0, extra.Y);
+        });
         _title = Ui.Label("Placement practice", 28);
         panel.AddChild(_title);
         // Which settlement to practice: the first, or the second (the whole first round played, yours placed by the bot).

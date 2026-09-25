@@ -62,11 +62,16 @@ public partial class GameScreen : Control
     private AnimationCues _cues = null!;
     private GameOverScreen _gameOver = null!;
     private PopupMenu _menu = null!;
+    private readonly HelpPanel _help = new();
     private readonly CardPicker _discard = new();
     private readonly Queue<GameAction> _queued = new();
 
     /// <summary>Each bot seat's agent (thinking on a worker thread); null for your seat.</summary>
     private readonly BackgroundAgent?[] _bots = new BackgroundAgent?[GameConstants.PlayerCount];
+
+    // Layers pinned to the window's edges (design coordinates inside; moved by Relayout when the window is bigger).
+    private Control _rightLayer = null!, _youLayer = null!, _handLayer = null!, _barLayer = null!, _centerLayer = null!;
+    private Vector2 _extra;
 
     private PlayerView? _view;
     private BuildMode _mode;
@@ -95,9 +100,7 @@ public partial class GameScreen : Control
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore; // let clicks reach the board (panels still stop the ones over them)
-        var background = new ColorRect { Color = Ui.Sea, MouseFilter = MouseFilterEnum.Ignore };
-        background.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(background);
+        AddChild(new SeaView());
 
         _options = GameSession.Options;
         if (ulong.TryParse(System.Environment.GetEnvironmentVariable("CATAN_SEED"), out ulong devSeed))
@@ -105,7 +108,7 @@ public partial class GameScreen : Control
         _ = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_AUTOPLAY"), out _autoplayActions);
         var resume = GameSession.Resume;
         GameSession.Resume = null;
-        _setup = GameSetup.Create(resume?.Seed ?? _options.Seed ?? (ulong)System.Random.Shared.NextInt64());
+        _setup = GameSetup.Create(resume?.Seed ?? _options.Seed ?? NewSeed());
         _text = new GameText(_setup.Colors, _setup.HumanSeat);
         _human = new HumanAgent("You", TimeSpan.FromSeconds(_options.ResponseWindowSeconds));
         _human.PromptChanged += OnPromptChanged;
@@ -120,7 +123,7 @@ public partial class GameScreen : Control
             // A damaged or incompatible save: say so and start a new game instead.
             loadError = ex.Message;
             resume = null;
-            _setup = GameSetup.Create(_options.Seed ?? (ulong)System.Random.Shared.NextInt64());
+            _setup = GameSetup.Create(_options.Seed ?? NewSeed());
             _text = new GameText(_setup.Colors, _setup.HumanSeat);
             _talk = CreateTalk(null);
             _runner = CreateRunner(null);
@@ -134,53 +137,59 @@ public partial class GameScreen : Control
 
         AddTopLeftButtons();
 
+        _rightLayer = ScreenLayout.Layer(this);   // log, chat, bank, opponents, offers
+        _youLayer = ScreenLayout.Layer(this);     // your panel (bottom right)
+        _barLayer = ScreenLayout.Layer(this);     // buttons, status, timer (bottom, next to your panel)
+        _handLayer = ScreenLayout.Layer(this);    // your hand and the panels that grow out of it (bottom left)
+        _centerLayer = ScreenLayout.Layer(this);  // popups over the middle of the board
+
         // Right column: log, bank, the opponents in the order they play after you, then you.
-        _log = new LogPanel(this, LogRect, _setup.Colors, _setup.HumanSeat, _text);
+        _log = new LogPanel(_rightLayer, LogRect, _setup.Colors, _setup.HumanSeat, _text);
         _log.AddNote(resume is null
             ? $"Game seed {_setup.Seed}. You are {_setup.HumanColor}, seat {_setup.HumanSeat + 1} in turn order."
             : $"Continuing a saved game (seed {_setup.Seed}). You are {_setup.HumanColor}.");
         if (loadError is not null)
             _log.AddNote($"That save couldn't be loaded ({loadError}). Started a new game instead.", Ui.Bad);
-        _chat = new ChatPanel(this, ChatRect, _setup.Colors, _setup.HumanSeat);
+        _chat = new ChatPanel(_rightLayer, ChatRect, _setup.Colors, _setup.HumanSeat);
         foreach (var line in _talk.Lines)
             _chat.Add(line);
         _talk.LineAdded += _chat.Add;
         _chat.Sent += OnChatSent;
         _bank = new BankView { Position = BankRect.Position, Size = BankRect.Size };
-        AddChild(_bank);
+        _rightLayer.AddChild(_bank);
         int row = 0;
         foreach (int seat in HudModel.Opponents(_setup.HumanSeat))
         {
             _playerCards[seat] = new PlayerCard { Position = new Vector2(LogRect.Position.X, RowTop + row++ * (RowHeight + RowGap)), Size = new Vector2(LogRect.Size.X, RowHeight) };
-            AddChild(_playerCards[seat]);
+            _rightLayer.AddChild(_playerCards[seat]);
         }
         _playerCards[_setup.HumanSeat] = new PlayerCard { Position = YouRect.Position, Size = YouRect.Size, Big = true };
-        AddChild(_playerCards[_setup.HumanSeat]);
+        _youLayer.AddChild(_playerCards[_setup.HumanSeat]);
 
         // Bottom: hand, buttons, status; dice beside whoever rolled.
-        _hand = new HandBar(this, HandRect);
+        _hand = new HandBar(_handLayer, HandRect);
         _hand.ResourceClicked += OnHandResourceClicked;
-        _bar = new ActionBar(this, ButtonsAt, StatusRect, TimerRect, _setup.HumanColor);
+        _bar = new ActionBar(_barLayer, ButtonsAt, StatusRect, TimerRect, _setup.HumanColor);
         _bar.Clicked += OnBarClicked;
         _dice = new DiceView { Visible = false };
         _dice.Clicked += () => OnBarClicked(BarItem.Roll);
         AddChild(_dice);
 
         // Trading.
-        _proposal = new TradeProposal(this, ProposalRect, BankButtonRect, PeopleButtonRect, _setup.HumanColor, _setup.HumanSeat, _text, Submit, SubmitAll, WhyNot);
+        _proposal = new TradeProposal(_handLayer, ProposalRect, BankButtonRect, PeopleButtonRect, _setup.HumanColor, _setup.HumanSeat, _text, Submit, SubmitAll, WhyNot);
         _proposal.Sent += () => { _tradeOpen = false; Refresh(); };
-        _popups = new TradePopups(this, PopupsTopRight, _setup.Colors, _setup.HumanSeat, _text, Submit, WhyNot,
+        _popups = new TradePopups(_rightLayer, PopupsTopRight, _setup.Colors, _setup.HumanSeat, _text, Submit, WhyNot,
             edit: (slot, o) => { _proposal.StartEdit(slot, o); _tradeOpen = true; Refresh(); },
             counter: (slot, o) => { _proposal.StartCounter(slot, o); Refresh(); });
         _popups.DealNote = DealNote;
 
         // Sevens and dev cards: discard from your hand, pick who to rob, play a card from your hand.
-        _discardUi = new DiscardPanel(this, DiscardRect, _discard,
+        _discardUi = new DiscardPanel(_handLayer, DiscardRect, _discard,
             () => Submit(new GameAction(ActionType.Discard, _setup.HumanSeat, Give: _discard.Cards)));
         // Picking a card moves it out of the hand bar (a full Refresh here would loop: it resets the picker's limits).
         _discard.Changed += () => { if (_view is not null) _hand.Update(HudModel.Hand(_view, _discard.Cards)); };
-        _victims = new VictimPopup(this, VictimCenter, _setup.Colors, _text, () => { _choices = null; Refresh(); });
-        _devPopup = new DevCardPopup(this, DevRect, _setup.HumanSeat, Submit);
+        _victims = new VictimPopup(_centerLayer, VictimCenter, _setup.Colors, _text, () => { _choices = null; Refresh(); });
+        _devPopup = new DevCardPopup(_handLayer, DevRect, _setup.HumanSeat, Submit);
         _devPopup.Closed += () => { _devPopup.Close(); Refresh(); };
         _hand.DevClicked += type => { CloseProposal(); _devPopup.Open(type); Refresh(); };
 
@@ -195,10 +204,32 @@ public partial class GameScreen : Control
         _gameOver.NewGame += () => { _quit.Cancel(); GameSession.Resume = null; GetTree().ReloadCurrentScene(); };
         _gameOver.MainMenu += Leave;
         AddChild(_gameOver);
+        AddChild(_help);
 
+        ScreenLayout.Watch(this, Relayout);
         Refresh();
         CallDeferred(MethodName.StartGame);
         DevShots.Run(this);
+    }
+
+    /// <summary>
+    /// Fits the window: the right column and your panel stay on the right edge, the hand and buttons on the bottom, popups
+    /// over the board's middle, and the board takes all the room in between (never stretched: the scale is fixed).
+    /// </summary>
+    private void Relayout(Vector2 extra)
+    {
+        _extra = extra;
+        _rightLayer.Position = new Vector2(extra.X, 0);
+        _youLayer.Position = extra;
+        _barLayer.Position = extra;
+        _handLayer.Position = new Vector2(0, extra.Y);
+        _centerLayer.Position = extra / 2;
+        _hand.SetWidth(HandRect.Size.X + extra.X); // up to the buttons, which stay beside your panel
+        _board.Setup(new Rect2(BoardRect.Position, BoardRect.Size + extra));
+        _animator.Setup(_board, Where, new Vector2(BoardRect.GetCenter().X + extra.X / 2, 14));
+        _gameOver.Relayout(extra);
+        if (_view is { } v)
+            ShowDice(v, _human.Prompt?.Legal, animate: false);
     }
 
     /// <summary>Settings (Save / Main menu) and fullscreen, top left.</summary>
@@ -209,6 +240,7 @@ public partial class GameScreen : Control
         menu.AddItem("Main menu", 1);
         menu.AddItem("Game results", 2);
         menu.SetItemDisabled(2, true);
+        menu.AddItem("How to play", 3);
         _menu = menu;
         menu.IdPressed += id =>
         {
@@ -216,8 +248,10 @@ public partial class GameScreen : Control
                 SaveGame();
             else if (id == 1)
                 Leave();
-            else
+            else if (id == 2)
                 ShowResults();
+            else
+                _help.Open();
         };
         AddChild(menu);
         var gear = new ActionTile { Position = new Vector2(8, 8), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => Gear(c, at, s) };
@@ -226,8 +260,7 @@ public partial class GameScreen : Control
         AddChild(gear);
         var full = new ActionTile { Position = new Vector2(8, 58), Size = new Vector2(44, 44), DrawIcon = (c, at, s, ink) => FullscreenIcon(c, at, s) };
         full.Set(true, "Fullscreen");
-        full.Clicked += () => DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
-            ? DisplayServer.WindowMode.Windowed : DisplayServer.WindowMode.Fullscreen);
+        full.Clicked += GameSession.ToggleFullscreen;
         AddChild(full);
     }
 
@@ -276,6 +309,9 @@ public partial class GameScreen : Control
         string path = ProjectSettings.GlobalizePath("res://bots/best.json");
         return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
     }
+
+    /// <summary>A new game's seed: random, giving you your chosen colour if you picked one in Settings.</summary>
+    private ulong NewSeed() => GameSetup.SeedFor(_options.PreferredColor, () => (ulong)System.Random.Shared.NextInt64());
 
     /// <summary>The table talk for this game: new, or the one saved with the game being continued.</summary>
     private TableTalk CreateTalk(GameRecord? resume)
@@ -405,7 +441,11 @@ public partial class GameScreen : Control
             _bar.SetTimer(Clock(Math.Max(0, (deadline - DateTime.UtcNow).TotalSeconds)));
         }
         else if (!_runner.IsOver)
+        {
             _bar.SetTimer(Clock(_clock.Remaining(DateTime.UtcNow)));
+        }
+        else
+            _bar.SetTimer(""); // the game is over: no clock
         OnTimeUp();
         CloseDeclinedOffers();
         // "Orange is thinking…" appears while a bot works on a decision (it thinks on another thread).
@@ -475,6 +515,11 @@ public partial class GameScreen : Control
 
     public override void _Input(InputEvent @event)
     {
+        if (GameSession.HandleFullscreenKey(@event))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         // Space rolls the dice, or ends your turn. Handled before buttons see it (a focused button would take Space too).
         if (@event is InputEventKey { Keycode: Key.Space, Pressed: true, Echo: false } && !_chat.Typing && _view is { } v && _human.Prompt is { IsOptional: false } prompt)
         {
@@ -564,6 +609,8 @@ public partial class GameScreen : Control
             newRoll |= seen[_loggedEvents] is DiceRolled;
             _log.Add(seen[_loggedEvents]);
             cues.AddRange(_cues.For(seen[_loggedEvents], view)); // always, so the cue builder keeps track of rolls and settlements
+            if (animate && GameSounds.For(seen[_loggedEvents], _setup.HumanSeat, view.CurrentPlayer) is { } sound)
+                Sounds.Play(sound);
         }
 
         var prompt = _human.Prompt;
@@ -610,8 +657,8 @@ public partial class GameScreen : Control
         if (seat < 0)
             return;
         var row = _playerCards[seat];
-        float y = row.Position.Y + row.Size.Y / 2 - _dice.Size.Y / 2;
-        _dice.Position = new Vector2(LogRect.Position.X - _dice.Size.X - 4, Math.Min(y, StatusRect.Position.Y - _dice.Size.Y - 4));
+        float y = row.GlobalPosition.Y + row.Size.Y / 2 - _dice.Size.Y / 2;
+        _dice.Position = new Vector2(LogRect.Position.X + _extra.X - _dice.Size.X - 4, Math.Min(y, StatusRect.Position.Y + _extra.Y - _dice.Size.Y - 4));
         _dice.Set(rollState.Enabled, rollState.Tooltip);
         _dice.Show(rollState.Enabled ? null : roll, roll is null ? "" : $"{_text.Seat(roll.Seat)} rolled {roll.Total}", animate);
     }
@@ -631,9 +678,9 @@ public partial class GameScreen : Control
     private Vector2 Where(Spot spot) => spot.Kind switch
     {
         SpotKind.Hex => _board.HexCenter(spot.Id),
-        SpotKind.Seat when spot.Id == _setup.HumanSeat => HandRect.Position + new Vector2(150, HandRect.Size.Y / 2),
-        SpotKind.Seat => _playerCards[spot.Id].Position + new Vector2(60, _playerCards[spot.Id].Size.Y / 2 + 6),
-        _ => BankRect.Position + new Vector2(BankRect.Size.X / 2, BankRect.Size.Y / 2),
+        SpotKind.Seat when spot.Id == _setup.HumanSeat => _handLayer.Position + HandRect.Position + new Vector2(150, HandRect.Size.Y / 2),
+        SpotKind.Seat => _playerCards[spot.Id].GlobalPosition + new Vector2(60, _playerCards[spot.Id].Size.Y / 2 + 6),
+        _ => _rightLayer.Position + BankRect.Position + new Vector2(BankRect.Size.X / 2, BankRect.Size.Y / 2),
     };
 
     private bool CanTrade(PlayerView v, HumanPrompt? prompt) =>

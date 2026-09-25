@@ -132,7 +132,15 @@ public partial class BoardView : Node2D
         return 1 + 0.8f * (1 - t) * (1 - t); // 1.8× shrinking to 1×
     }
 
-    public void Setup(Rect2 area) => _geometry = new BoardGeometry(area.Position.X, area.Position.Y, area.Size.X, area.Size.Y);
+    /// <summary>Where the board sits (again when the window changes size): every layer redraws at the new place.</summary>
+    public void Setup(Rect2 area)
+    {
+        _geometry = new BoardGeometry(area.Position.X, area.Position.Y, area.Size.X, area.Size.Y);
+        foreach (var child in GetChildren())
+            if (child is CanvasItem layer)
+                layer.QueueRedraw();
+        QueueRedraw();
+    }
 
     public void Show(PlayerView view, IReadOnlyList<SeatColor> colors)
     {
