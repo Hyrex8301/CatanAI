@@ -156,6 +156,27 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void DevsHeldNumbersPortsAndFocus()
+    {
+        // Seat 0 on hex 0 (a 6) and the centre hex, with a Monopoly and a Road Building in hand.
+        var s = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, -2, Corner.N)).Settlement(0, Vertex(0, 0, Corner.N))
+            .DevCards(0, monopoly: 1, roadBuilding: 2)
+            .Build();
+        Assert.Equal(1, F(s, 0, "monopoly_held"));
+        Assert.Equal(0, F(s, 0, "yop_held"));
+        Assert.Equal(2, F(s, 0, "rb_held"));
+        int distinct = new[] { Vertex(0, -2, Corner.N), Vertex(0, 0, Corner.N) }
+            .SelectMany(v => Enumerable.Range(0, 3).Select(i => VertexHexes[v, i]))
+            .Where(h => h >= 0 && s.Board.NumberAt(h) > 0).Select(h => s.Board.NumberAt(h)).Distinct().Count();
+        Assert.Equal(distinct, F(s, 0, "number_diversity"));
+        double production = new[] { "prod_brick", "prod_lumber", "prod_wool", "prod_grain", "prod_ore" }.Sum(n => F(s, 0, n));
+        Assert.Equal(F(s, 0, "harbor_3to1") * production, F(s, 0, "harbor_3to1_prod"), 9); // a 3:1 port, scaled by production
+        double focus = new[] { F(s, 0, "city_combo"), F(s, 0, "road_combo"), F(s, 0, "dev_combo") }.Max();
+        Assert.Equal(focus, F(s, 0, "strategy_focus"));
+    }
+
+    [Fact]
     public void RivalsForTheSameAwardCountExtra()
     {
         var rivalWeights = new Evaluator(BotWeights.FromJson("""{ "rival": 1 }"""));

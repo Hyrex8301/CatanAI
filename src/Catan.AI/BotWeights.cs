@@ -38,6 +38,10 @@ public sealed class BotWeights
         // Being the obvious robber target: the most production (cards per roll) one robber placement could shut off, and
         // the lead in points everyone can see (hidden VP cards keep you under the radar).
         ["robber_magnet"] = 0, ["public_lead"] = 0,
+        // Unplayed Monopoly / Year of Plenty / Road Building (so holding one for the right moment can be worth more than
+        // dev_cards alone says); how many different dice numbers our buildings touch; a 3:1 port scaled by our production
+        // (worth little while we produce little); and our strongest single plan (cities, roads or dev cards).
+        ["monopoly_held"] = 0, ["yop_held"] = 0, ["rb_held"] = 0, ["number_diversity"] = 0, ["harbor_3to1_prod"] = 0, ["strategy_focus"] = 0,
     };
 
     /// <summary>
@@ -57,6 +61,7 @@ public sealed class BotWeights
         "knight_blocked", "vp_lead", "rival",
         "settles_stuck", "stuck_city_combo", "stuck_city_missing",
         "robber_magnet", "public_lead",
+        "monopoly_held", "yop_held", "rb_held", "number_diversity", "harbor_3to1_prod", "strategy_focus",
     };
 
     private readonly double[] _values;

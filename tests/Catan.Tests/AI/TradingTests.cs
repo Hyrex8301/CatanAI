@@ -48,6 +48,30 @@ public class TradingTests
     }
 
     [Fact]
+    public void NeverAsksForACardNobodyElseCanHold()
+    {
+        // Every ore is in the bank: offers may give anything, but never ask for ore.
+        var s = MainWithHands();
+        s.Hand[0 * 5 + 1] = 4; // plenty to trade away
+        var tracker = new HandTracker(0);
+        for (int i = 0; i < 20; i++)
+            if (Trading.ProposeOffer(PlayerView.From(s, 0), tracker, Eval, new Rng((ulong)i)) is { } offer)
+                Assert.Equal(0, offer.Get.Ore);
+    }
+
+    [Fact]
+    public void OnlyAKnightIsPlayedBeforeTheRoll()
+    {
+        var legal = new[]
+        {
+            new GameAction(ActionType.RollDice, 0), new GameAction(ActionType.PlayKnight, 0),
+            new GameAction(ActionType.PlayMonopoly, 0, 3), new GameAction(ActionType.PlayRoadBuilding, 0),
+        };
+        Assert.Equal(new[] { ActionType.RollDice, ActionType.PlayKnight }, DevTiming.BeforeRoll(Phase.PreRoll, legal).Select(a => a.Type));
+        Assert.Equal(4, DevTiming.BeforeRoll(Phase.Main, legal).Count);
+    }
+
+    [Fact]
     public void NothingOpenMeansNothingToSettle() => Assert.Null(Settle(MainWithHands()));
 
     [Fact]

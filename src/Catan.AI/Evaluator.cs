@@ -33,6 +33,9 @@ public sealed class Evaluator
 
     private static readonly int FRobberMagnet = I("robber_magnet"), FPublicLead = I("public_lead");
 
+    private static readonly int FMonopolyHeld = I("monopoly_held"), FYopHeld = I("yop_held"), FRbHeld = I("rb_held"),
+        FNumberDiversity = I("number_diversity"), FHarbor3Prod = I("harbor_3to1_prod"), FStrategyFocus = I("strategy_focus");
+
     /// <summary>Points at which the leader threat starts to count (it is full one point from winning).</summary>
     private const int ThreatStartVp = 5;
 
@@ -127,6 +130,7 @@ public sealed class Evaluator
         // ignored). All sums are whole numbers, so the order doesn't change the result.
         Span<int> prod = stackalloc int[Seats * R];
         Span<int> onHex = stackalloc int[Seats * Topology.HexCount]; // pips x level per seat per hex (robber_magnet)
+        Span<int> numbers = stackalloc int[Seats]; // bit n set = a building touches a hex numbered n
         Span<int> blocked = stackalloc int[Seats];
         Span<bool> generic = stackalloc bool[Seats];
         Span<bool> twoToOne = stackalloc bool[Seats * R];
@@ -151,6 +155,7 @@ public sealed class Evaluator
                     else
                         prod[owner * R + r] += board.PipsAt(h) * level;
                     onHex[owner * Topology.HexCount + h] += board.PipsAt(h) * level;
+                    numbers[owner] |= 1 << board.NumberAt(h);
                 }
                 int spot = Topology.VertexHarbor[v];
                 if (spot >= 0)
@@ -271,6 +276,15 @@ public sealed class Evaluator
                 if (other != seat)
                     otherPublic = Math.Max(otherPublic, s.PublicVP[other]);
             row[FPublicLead] = Math.Clamp(s.PublicVP[seat] - otherPublic, 0, 5);
+            row[FMonopolyHeld] = s.DevHand[seat * D + (int)DevCardType.Monopoly];
+            row[FYopHeld] = s.DevHand[seat * D + (int)DevCardType.YearOfPlenty];
+            row[FRbHeld] = s.DevHand[seat * D + (int)DevCardType.RoadBuilding];
+            row[FNumberDiversity] = System.Numerics.BitOperations.PopCount((uint)numbers[seat]);
+            double totalProd = 0;
+            for (int r = 0; r < R; r++)
+                totalProd += prod[seat * R + r];
+            row[FHarbor3Prod] = generic[seat] ? totalProd / 36.0 : 0;
+            row[FStrategyFocus] = Math.Max(row[FCityCombo], Math.Max(row[FRoadCombo], row[FDevCombo]));
             row[FSpots] = Math.Min(spots[seat], 6);
             row[FBestSpot] = bestSpot[seat];
             row[FRoad] = s.RoadLength[seat];

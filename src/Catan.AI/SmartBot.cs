@@ -2,6 +2,19 @@ using Catan.Core;
 
 namespace Catan.AI;
 
+/// <summary>
+/// When dev cards are worth playing. Before the roll only a knight is: Year of Plenty, Monopoly and Road Building lose
+/// nothing by waiting for the roll (they can still be played this turn) and gain from knowing what it brought.
+/// </summary>
+public static class DevTiming
+{
+    public static IReadOnlyList<GameAction> BeforeRoll(Phase phase, IReadOnlyList<GameAction> legal) =>
+        phase == Phase.PreRoll && legal.Any(IsProgressCard) ? legal.Where(a => !IsProgressCard(a)).ToList() : legal;
+
+    public static bool IsProgressCard(GameAction a) =>
+        a.Type is ActionType.PlayYearOfPlenty or ActionType.PlayMonopoly or ActionType.PlayRoadBuilding;
+}
+
 /// <summary>How hard SmartBot thinks. Deeper and wider plans are stronger but slower.</summary>
 public sealed record SmartBotSettings
 {
@@ -83,6 +96,7 @@ public sealed class SmartBot : IPlayerAgent
 
     private GameAction Decide(PlayerView view, IReadOnlyList<GameAction> legal)
     {
+        legal = DevTiming.BeforeRoll(view.Phase, legal);
         var tracker = Track(view);
         if (view.Phase == Phase.Discard)
             return Discard(view, tracker);

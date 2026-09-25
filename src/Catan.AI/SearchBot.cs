@@ -95,6 +95,8 @@ public sealed class PlayoutPolicy
             return;
         }
         Rules.GetLegalActions(s, seat, _legal);
+        if (s.Phase == Phase.PreRoll)
+            _legal.RemoveAll(DevTiming.IsProgressCard); // the same timing the bots play by
         var move = _legal.Count == 1 ? _legal[0] : _legal[Best(s, seat, _legal, 1)[0]];
         Rules.Apply(s, move, chance);
     }
@@ -378,6 +380,7 @@ public sealed class SearchBot : IPlayerAgent
 
     public GameAction Decide(PlayerView view, IReadOnlyList<GameAction> legal, CancellationToken ct = default)
     {
+        legal = DevTiming.BeforeRoll(view.Phase, legal);
         var tracker = Track(view);
         if (view.Phase == Phase.Discard)
             return _smart.DecideAsync(view, legal, ct).Result;

@@ -40,8 +40,8 @@ public static class Trading
                     continue;
                 for (int get = 0; get < R; get++)
                 {
-                    if (get == give)
-                        continue;
+                    if (get == give || OpponentsHold(view, get) == 0)
+                        continue; // nobody else can have it: every one is in the bank or our hand
                     var gives = ResourceSet.Of((Resource)give, count);
                     var gets = ResourceSet.Of((Resource)get);
                     if (offeredThisTurn.Contains((gives, gets)))
@@ -163,6 +163,9 @@ public static class Trading
         }
         return null;
     }
+
+    /// <summary>How many cards of <paramref name="r"/> the opponents hold between them (public: the rest are in the bank or our hand).</summary>
+    public static int OpponentsHold(PlayerView view, int r) => Costs.BankPerResource - view.Bank[r] - view.Hand[r];
 
     /// <summary>The (give, get) of every offer and edit we made this turn, from the log.</summary>
     private static HashSet<(ResourceSet Give, ResourceSet Get)> OffersThisTurn(PlayerView view)
