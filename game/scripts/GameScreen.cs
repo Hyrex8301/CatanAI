@@ -89,6 +89,14 @@ public partial class GameScreen : Control
     private bool _practiceOver;
     private bool _paused;
 
+    /// <summary>Game review: every decision you made (what you saw, what you could do, what you did), graded after the game.</summary>
+    private readonly List<Decision> _decisions = new();
+    private GameReviewPanel _reviewPanel = null!;
+    private Task<GameReview>? _gameReview;
+
+    /// <summary>A move the game made for you (time ran out): not yours to be graded on.</summary>
+    private bool _autoMove;
+
     /// <summary>Position practice, until you end the practice turn (no clock, no time-outs until then).</summary>
     private bool Deciding => _start?.Kind == ScenarioKind.Decision && !_practiceOver;
 
@@ -225,6 +233,12 @@ public partial class GameScreen : Control
         _gameOver.NewGame += () => { _quit.Cancel(); GameSession.Resume = null; GetTree().ReloadCurrentScene(); };
         _gameOver.MainMenu += Leave;
         AddChild(_gameOver);
+        _reviewPanel = new GameReviewPanel();
+        _reviewPanel.Back += () => _gameOver.Visible = true;
+        _reviewPanel.NewGame += () => { _quit.Cancel(); GameSession.Resume = null; GetTree().ReloadCurrentScene(); };
+        _reviewPanel.MainMenu += Leave;
+        _gameOver.ReviewGame += ReviewGame;
+        AddChild(_reviewPanel);
         AddChild(_help);
 
         ScreenLayout.Watch(this, Relayout);
@@ -317,7 +331,10 @@ public partial class GameScreen : Control
     }
 
     private IPlayerAgent HumanSeatAgent() => _autoplayActions <= 0 ? _human
-        : new AutoplayAgent(new SmartBot(BotWeightsFile(), SmartBotSettings.Training, _setup.BotSeed + 101), _human, () => Autoplaying);
+        : new AutoplayAgent(new SmartBot(BotWeightsFile(), SmartBotSettings.Training, _setup.BotSeed + 101), _human, () => Autoplaying)
+        {
+            Decided = d => { lock (_decisions) _decisions.Add(d); },
+        };
 
     private bool Autoplaying => _runner is not null && _runner.Actions.Count < _autoplayActions;
 
@@ -455,7 +472,10 @@ public partial class GameScreen : Control
         if (!_runner.IsOver || _quit.IsCancellationRequested)
             return;
         _menu.SetItemDisabled(2, false);
+        _gameOver.CanReview = _decisions.Count > 0;
         _gameOver.Show(GameOverSummary.From(_runner.State, _runner.Log.For(_setup.HumanSeat)), _setup.Colors, _setup.HumanSeat);
+        if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_REVIEW") == "1")
+            ReviewGame(); // developer screenshots
     }
 
     private void OnActionApplied(GameAction action, IReadOnlyList<GameEvent> events)
@@ -523,7 +543,9 @@ public partial class GameScreen : Control
         _queued.Clear();
         _pending = null;
         _bar.SetStatus("Time's up", v.Phase == Phase.PreRoll ? "Rolled for you." : "Your turn was finished for you.");
+        _autoMove = true;
         Submit(move.Value);
+        _autoMove = false;
     }
 
     /// <summary>Your offers that every opponent declined close by themselves after a few seconds.</summary>
@@ -886,16 +908,18 @@ public partial class GameScreen : Control
 
     /// <summary>
     /// Position practice: a play of your turn. Moves from the legal list are graded in the background from the view you had
-    /// just before (every move you could have made, ranked); trade offers aren't in that list, so they're only counted.
-    /// Ending the turn ends the practice and shows the review.
+    /// just before (every move you could have made, ranked); trade offers aren't in that list, so they're only counted, and
+    /// neither is trade bookkeeping (withdraw, confirm). Forced moves aren't counted at all. Ending the turn ends the practice
+    /// and shows the review.
     /// </summary>
     private void RecordPracticePlay(HumanPrompt prompt, GameAction action)
     {
+        var decision = new Decision(prompt.View, prompt.Legal, action);
         if (prompt.Legal.Count == 1)
         {
             // A forced move (nothing else to do) isn't a decision: not graded, not counted.
         }
-        else if (prompt.Legal.Contains(action))
+        else if (GameReviewer.IsGradable(decision))
         {
             var coach = new DecisionCoach(BotWeightsFile());
             var names = Enumerable.Range(0, GameConstants.PlayerCount).Select(_text.Seat).ToArray();
@@ -921,7 +945,33 @@ public partial class GameScreen : Control
             return;
         var graded = _plays.Select(p => (p.Grade.Result, p.Move)).Where(p => p.Result.Moves.Any(m => m.Move == p.Move))
             .Select(p => new GradedPlay(p.Result.Of(p.Move), p.Result.Moves[0], p.Result.Moves.Count)).ToList();
-        _review.Show(graded, _ungraded);
+        if (graded.Count > 0)
+            GameSession.RecordScore(new PracticeResult(DateTime.Now, PracticeKind.Position, graded.Average(p => p.Yours.Rating), graded.Count,
+                graded.Count(p => p.Yours.Rank == 1)));
+        _review.Show(graded, _ungraded, GameSession.History.Describe(PracticeKind.Position));
+    }
+
+    /// <summary>
+    /// Review my game (results screen): the bots grade every decision you made, on all threads (the game is over, so they're
+    /// free). Graded once; the score goes into your practice history.
+    /// </summary>
+    private async void ReviewGame()
+    {
+        _gameOver.Visible = false;
+        if (_gameReview is null)
+        {
+            var weights = BotWeightsFile();
+            var names = Enumerable.Range(0, GameConstants.PlayerCount).Select(_text.Seat).ToArray();
+            var decisions = _decisions.ToList();
+            _gameReview = Task.Run(() => GameReviewer.Review(weights, decisions, names));
+            _reviewPanel.ShowWaiting();
+            var review = await _gameReview;
+            if (!IsInsideTree())
+                return;
+            if (review.Plays.Count > 0)
+                GameSession.RecordScore(new PracticeResult(DateTime.Now, PracticeKind.GameReview, review.Score, review.Plays.Count, review.BestPicks));
+        }
+        _reviewPanel.Show(await _gameReview, GameSession.History.Describe(PracticeKind.GameReview));
     }
 
     private void NewPosition()
@@ -952,6 +1002,8 @@ public partial class GameScreen : Control
             _bar.SetStatus("Can't do that", reason, error: true);
             return false;
         }
+        if (!_autoMove && _human.Prompt is { } asked && asked.Legal.Count > 1 && asked.Legal.Contains(action))
+            _decisions.Add(new Decision(asked.View, asked.Legal.ToList(), action));
         if (Deciding && _human.Prompt is { IsOptional: false } prompt && prompt.View.CurrentPlayer == _setup.HumanSeat)
             RecordPracticePlay(prompt, action);
         _choices = null;
@@ -1006,8 +1058,18 @@ public partial class GameScreen : Control
 
         public string Name => _human.Name;
 
-        public Task<GameAction> DecideAsync(PlayerView view, IReadOnlyList<GameAction> legal, CancellationToken ct) =>
-            (_useBot() ? _bot : _human).DecideAsync(view, legal, ct);
+        /// <summary>The bot's decisions for your seat (developer screenshots of the game review).</summary>
+        public Action<Decision>? Decided { get; init; }
+
+        public async Task<GameAction> DecideAsync(PlayerView view, IReadOnlyList<GameAction> legal, CancellationToken ct)
+        {
+            if (!_useBot())
+                return await _human.DecideAsync(view, legal, ct);
+            var move = await _bot.DecideAsync(view, legal, ct);
+            if (legal.Count > 1 && legal.Contains(move))
+                Decided?.Invoke(new Decision(view, legal.ToList(), move));
+            return move;
+        }
 
         public Task<GameAction?> RespondAsync(PlayerView view, IReadOnlyList<GameAction> legal, CancellationToken ct) =>
             (_useBot() ? _bot : _human).RespondAsync(view, legal, ct);

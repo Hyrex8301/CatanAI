@@ -6,8 +6,8 @@ using Godot;
 
 /// <summary>
 /// The end of the game: who won, each player's points by source (settlements, cities, Victory Point cards, Longest Road,
-/// Largest Army, now revealed), a few stats, and a chart of how often each number was rolled. Buttons: View board (close),
-/// New game, Main menu.
+/// Largest Army, now revealed), a few stats, and a chart of how often each number was rolled. Buttons: Review my game (the
+/// bots grade your plays), View board (close), New game, Main menu.
 /// </summary>
 public partial class GameOverScreen : Control
 {
@@ -21,7 +21,10 @@ public partial class GameOverScreen : Control
     private Vector2 _extra;
     private HBoxContainer? _buttons;
 
-    public event Action? NewGame, MainMenu;
+    public event Action? NewGame, MainMenu, ReviewGame;
+
+    /// <summary>Shows the "Review my game" button (when you made decisions the bots can grade).</summary>
+    public bool CanReview { get; set; }
 
     public GameOverScreen()
     {
@@ -37,9 +40,11 @@ public partial class GameOverScreen : Control
         _viewer = viewer;
         foreach (var child in GetChildren())
             child.QueueFree();
-        var buttons = _buttons = new HBoxContainer { Size = new Vector2(500, 50) };
+        var buttons = _buttons = new HBoxContainer { Size = new Vector2(660, 50) };
         buttons.AddThemeConstantOverride("separation", 10);
         buttons.Alignment = BoxContainer.AlignmentMode.End;
+        if (CanReview)
+            buttons.AddChild(Button("Review my game", () => ReviewGame?.Invoke()));
         buttons.AddChild(Button("View board", () => Visible = false));
         buttons.AddChild(Button("New game", () => NewGame?.Invoke()));
         buttons.AddChild(Button("Main menu", () => MainMenu?.Invoke()));
@@ -60,7 +65,7 @@ public partial class GameOverScreen : Control
     {
         _panel = new Rect2((ScreenLayout.Design + _extra - PanelSize) / 2, PanelSize);
         if (_buttons is not null && IsInstanceValid(_buttons))
-            _buttons.Position = _panel.Position + new Vector2(PanelSize.X - 520, PanelSize.Y - 70);
+            _buttons.Position = _panel.Position + new Vector2(PanelSize.X - 680, PanelSize.Y - 70);
         QueueRedraw();
     }
 

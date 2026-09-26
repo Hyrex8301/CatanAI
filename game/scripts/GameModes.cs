@@ -22,7 +22,7 @@ public static class GameModes
         }),
         new("Placement practice", "The whole opening in snake order; the bots rate each of your settlements and roads and say why.", PracticeSetup,
             tree => tree.ChangeSceneToFile("res://scenes/Practice.tscn")),
-        new("Position practice", "A random moment from a real game, on your turn with several plays to choose from. Play the turn; the bots rank each of your plays.", AddColourRow, tree =>
+        new("Position practice", "A random moment from a real game, on your turn with several plays to choose from. Play the turn; the bots rank each of your plays.", PositionSetup, tree =>
         {
             GameSession.Resume = null;
             GameSession.StartPosition = DealPosition();
@@ -37,11 +37,32 @@ public static class GameModes
     public static Catan.Core.Position DealPosition() =>
         PositionDealer.Deal(GameScreen.BotWeightsFile(), (ulong)System.Random.Shared.NextInt64());
 
+    /// <summary>Position practice: your colour, and how you've been doing.</summary>
+    private static void PositionSetup(VBoxContainer into)
+    {
+        AddColourRow(into);
+        AddHistory(into, PracticeKind.Position, "Your position practice");
+    }
+
+    /// <summary>Your recent form in this kind of practice: a line of numbers and a chart of the last scores (nothing before the first).</summary>
+    private static void AddHistory(VBoxContainer into, PracticeKind kind, string title)
+    {
+        if (GameSession.History.Describe(kind) is not { } text || GameSession.History.Summary(kind) is not { } summary)
+            return;
+        var line = Ui.Label($"{title}: {text}", 14, Ui.MutedText);
+        line.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        line.CustomMinimumSize = new Vector2(320, 0);
+        into.AddChild(line);
+        if (summary.Recent.Count >= 2)
+            into.AddChild(new ScoreChart(summary.Recent));
+    }
+
     /// <summary>Normal game: your colour, and the board (a new random one, or a seed to get the same board again).</summary>
     private static void NormalSetup(VBoxContainer into)
     {
         AddColourRow(into);
         AddBoardRow(into);
+        AddHistory(into, PracticeKind.GameReview, "Your game reviews");
     }
 
     private static void AddColourRow(VBoxContainer into)
@@ -67,6 +88,7 @@ public static class GameModes
         feedback.Selected = GameSession.Options.PracticeFeedbackEach ? 0 : 1;
         feedback.ItemSelected += index => GameSession.SaveSettings(GameSession.Options with { PracticeFeedbackEach = index == 0 });
         into.AddChild(Ui.SettingRow("Feedback", feedback));
+        AddHistory(into, PracticeKind.Placement, "Your placement practice");
     }
 
     /// <summary>The board: a new random one each time, or a seed (the same seed always deals the same board).</summary>

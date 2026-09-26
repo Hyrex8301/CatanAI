@@ -36,6 +36,13 @@ public sealed record TrainerOptions
     /// <summary>Size of a variation, relative to each weight's scale.</summary>
     public double Sigma { get; init; } = 0.1;
 
+    /// <summary>
+    /// Smallest scale a weight's variations use (each weight varies relative to max(|start value|, this)). A weight that
+    /// starts small can only grow by about Sigma × this per generation, so a bigger floor lets new or undervalued features
+    /// find their size in one run.
+    /// </summary>
+    public double MinScale { get; init; } = 0.5;
+
     /// <summary>Step size of the update, relative to <see cref="Sigma"/>.</summary>
     public double LearningRate { get; init; } = 0.5;
 
@@ -126,7 +133,7 @@ public sealed class Trainer
         {
             Mean = mean,
             Start = (double[])mean.Clone(),
-            Scale = mean.Select(w => Math.Max(Math.Abs(w), 0.5)).ToArray(),
+            Scale = mean.Select(w => Math.Max(Math.Abs(w), _o.MinScale)).ToArray(),
             Champion = (double[])mean.Clone(),
         };
         File.WriteAllText(ProgressPath, "generation,seconds,games,fitness,champions,champion_vs_start\n");

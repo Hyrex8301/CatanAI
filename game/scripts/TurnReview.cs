@@ -42,13 +42,15 @@ public sealed class TurnReview
         Open();
     }
 
-    public void Show(IReadOnlyList<GradedPlay> plays, int ungraded)
+    public void Show(IReadOnlyList<GradedPlay> plays, int ungraded, string? history)
     {
         Clear();
         double score = plays.Count == 0 ? 0 : plays.Average(p => p.Yours.Rating);
         int picks = plays.Count(p => p.Yours.Rank == 1);
         _body.AddChild(Ui.Label($"Your turn: {score:0} / 100", 22, Tone(score)));
         _body.AddChild(Ui.Label(plays.Count == 0 ? "No graded plays." : $"{picks} of {plays.Count} plays were the bots' pick.", 15));
+        if (history is not null)
+            _body.AddChild(Wrapped($"Your position practice: {history}", 14, Ui.MutedText));
         _body.AddChild(new HSeparator());
 
         var rows = new VBoxContainer();
@@ -72,7 +74,7 @@ public sealed class TurnReview
         scroll.AddChild(rows);
         _body.AddChild(scroll);
         if (ungraded > 0)
-            _body.AddChild(Ui.Label(ungraded == 1 ? "1 trade offer isn't graded." : $"{ungraded} trade offers aren't graded.", 14, Ui.MutedText));
+            _body.AddChild(Ui.Label(ungraded == 1 ? "1 trade move isn't graded." : $"{ungraded} trade moves aren't graded.", 14, Ui.MutedText));
 
         var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         buttons.AddThemeConstantOverride("separation", 12);

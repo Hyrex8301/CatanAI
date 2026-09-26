@@ -34,6 +34,8 @@ public sealed class Evaluator
     private static readonly int FRobberMagnet = I("robber_magnet"), FPublicLead = I("public_lead");
 
     private static readonly int FProspectPips = I("prospect_pips"), FProspects = I("prospects");
+    private static readonly int FVpTurns = I("vp_turns"), FRoadEarly = I("road_early"), FKnightsHeld = I("knights_held");
+    private static readonly int FArmyReach = I("army_reach"), FPortCount = I("port_count");
 
     private static readonly int FMonopolyHeld = I("monopoly_held"), FYopHeld = I("yop_held"), FRbHeld = I("rb_held"),
         FNumberDiversity = I("number_diversity"), FHarbor3Prod = I("harbor_3to1_prod"), FStrategyFocus = I("strategy_focus");
@@ -136,6 +138,7 @@ public sealed class Evaluator
         Span<int> blocked = stackalloc int[Seats];
         Span<bool> generic = stackalloc bool[Seats];
         Span<bool> twoToOne = stackalloc bool[Seats * R];
+        Span<int> harbors = stackalloc int[Seats]; // bit per harbor spot owned (port_count)
         Span<int> spots = stackalloc int[Seats];
         Span<int> bestSpot = stackalloc int[Seats];
         for (int v = 0; v < Topology.VertexCount; v++)
@@ -162,6 +165,7 @@ public sealed class Evaluator
                 int spot = Topology.VertexHarbor[v];
                 if (spot >= 0)
                 {
+                    harbors[owner] |= 1 << spot;
                     var type = board.HarborTypeAt(spot);
                     if (type == HarborType.Generic)
                         generic[owner] = true;
@@ -330,6 +334,27 @@ public sealed class Evaluator
                     dev += s.DevHand[seat * D + t];
             row[FDev] = dev;
             row[FBlocked] = blocked[seat] / 36.0;
+            row[FRoadEarly] = Math.Min(s.RoadLength[seat], 5);
+            row[FKnightsHeld] = s.DevHand[seat * D + (int)DevCardType.Knight];
+            row[FPortCount] = System.Numerics.BitOperations.PopCount((uint)harbors[seat]);
+            // Knights still to play for Largest Army after the ones in hand (0 while we hold it): pacing the race.
+            if (s.LargestArmyOwner == seat)
+                row[FArmyReach] = 0;
+            else
+            {
+                int need = Math.Max(Rules.LargestArmyMinimum - s.KnightsPlayed[seat], OtherMax(s.KnightsPlayed, seat) + 1 - s.KnightsPlayed[seat]);
+                row[FArmyReach] = Math.Clamp(need - s.DevHand[seat * D + (int)DevCardType.Knight], 0, 5);
+            }
+            bool anyTwo = false;
+            for (int r = 0; r < R; r++)
+                anyTwo |= twoToOne[seat * R + r] && prod[seat * R + r] > 0;
+            int tradeRate = anyTwo ? 2 : generic[seat] ? 3 : 4;
+            double best = VpTurnsCap;
+            if (s.SettlementsLeft[seat] > 0 && spots[seat] > 0)
+                best = Math.Min(best, RoundsFor(Costs.Settlement, hand, prod.Slice(seat * R, R), tradeRate));
+            if (s.CitiesLeft[seat] > 0 && s.SettlementsLeft[seat] < Costs.SettlementsPerPlayer)
+                best = Math.Min(best, RoundsFor(Costs.City, hand, prod.Slice(seat * R, R), tradeRate));
+            row[FVpTurns] = best;
         }
     }
 
@@ -484,6 +509,37 @@ public sealed class Evaluator
                 return false;
         }
         return true;
+    }
+
+    /// <summary>Most rounds <c>vp_turns</c> counts (no point in sight at all).</summary>
+    public const double VpTurnsCap = 10;
+
+    /// <summary>How much the other missing cards add on top of the slowest one in <see cref="RoundsFor"/>.</summary>
+    public const double OthersShare = 0.25;
+
+    /// <summary>
+    /// About how many rounds (4 rolls each) until <paramref name="hand"/> covers <paramref name="cost"/>: each missing card
+    /// comes from its own production (pips / 36 a roll), or, for resources we don't produce, by trading
+    /// <paramref name="tradeRate"/> of our other production for it. Cards gather in parallel, so the slowest one decides, plus a
+    /// share of the others (dice vary: waiting on several cards takes longer than on one).
+    /// </summary>
+    public static double RoundsFor(ResourceSet cost, ReadOnlySpan<int> hand, ReadOnlySpan<int> pips, int tradeRate)
+    {
+        double total = 0;
+        for (int r = 0; r < R; r++)
+            total += pips[r];
+        double slowest = 0, sum = 0;
+        for (int r = 0; r < R; r++)
+        {
+            int missing = cost[r] - hand[r];
+            if (missing <= 0)
+                continue;
+            double perRound = pips[r] > 0 ? pips[r] * 4 / 36.0 : total * 4 / 36.0 / tradeRate;
+            double rounds = perRound > 0 ? missing / perRound : VpTurnsCap;
+            slowest = Math.Max(slowest, rounds);
+            sum += rounds;
+        }
+        return Math.Min(slowest + OthersShare * (sum - slowest), VpTurnsCap);
     }
 
     private static int Missing(ResourceSet cost, ReadOnlySpan<int> hand)

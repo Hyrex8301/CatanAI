@@ -46,6 +46,12 @@ public sealed class BotWeights
         // (fewer roads away): the best one's pips and how many. Pointing roads at good spots, and "plowing" toward a spot
         // an opponent wants (it drops out of their prospects), both show up here.
         ["prospect_pips"] = 0, ["prospects"] = 0,
+        // A goal in mind: about how many rounds until the next point (a settlement on an open spot or a city), from the hand
+        // and production, trading 4:1 (or by port) for what we don't produce; road length only up to 5 (reaching spots and
+        // entering the race; beyond that only the award matters); knights held in hand (holding them vs pacing the army).
+        ["vp_turns"] = 0, ["road_early"] = 0, ["knights_held"] = 0,
+        // Knights still to play for Largest Army after those in hand (0 while holding it), and how many ports we own.
+        ["army_reach"] = 0, ["port_count"] = 0,
     };
 
     /// <summary>
@@ -67,6 +73,8 @@ public sealed class BotWeights
         "robber_magnet", "public_lead",
         "monopoly_held", "yop_held", "rb_held", "number_diversity", "harbor_3to1_prod", "strategy_focus",
         "prospect_pips", "prospects",
+        "vp_turns", "road_early", "knights_held",
+        "army_reach", "port_count",
     };
 
     private readonly double[] _values;

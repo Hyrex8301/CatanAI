@@ -292,6 +292,84 @@ public class EvaluatorTests
         Assert.All(BotWeights.Load(path).ToVector(), v => Assert.True(double.IsFinite(v)));
     }
 
+    [Fact]
+    public void RoundsForCountsTheSlowestMissingCard()
+    {
+        // A city: 2 grain + 3 ore. Holding 2 grain and 1 ore, making ore at 9 pips (one card a round): 2 rounds.
+        var pips = new[] { 0, 0, 0, 5, 9 };
+        Assert.Equal(2, Evaluator.RoundsFor(Costs.City, new[] { 0, 0, 0, 2, 1 }, pips, 4), 6);
+        // No ore production: 3 ore by trading 4:1 from 18 pips of other cards (half a card a round): 6 rounds.
+        Assert.Equal(6, Evaluator.RoundsFor(Costs.City, new[] { 0, 0, 0, 2, 0 }, new[] { 9, 0, 0, 9, 0 }, 4), 6);
+        // A 3:1 port makes it faster; nothing produced at all hits the cap; a covered cost is 0.
+        Assert.Equal(4.5, Evaluator.RoundsFor(Costs.City, new[] { 0, 0, 0, 2, 0 }, new[] { 9, 0, 0, 9, 0 }, 3), 6);
+        Assert.Equal(Evaluator.VpTurnsCap, Evaluator.RoundsFor(Costs.City, new int[5], new int[5], 4));
+        Assert.Equal(0, Evaluator.RoundsFor(Costs.City, new[] { 0, 0, 0, 2, 3 }, new int[5], 4));
+    }
+
+    [Fact]
+    public void VpTurnsFallsAsTheNextPointGetsCloser()
+    {
+        // Seat 0 has an open spot (roads N -> NE -> SE of the center) and a settlement to upgrade.
+        StateBuilder Base() => new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N))
+            .Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E));
+        double empty = F(Base().Build(), 0, "vp_turns");
+        double almost = F(Base().Hand(0, brick: 1, lumber: 1, wool: 1).Build(), 0, "vp_turns");
+        double ready = F(Base().Hand(0, brick: 1, lumber: 1, wool: 1, grain: 1).Build(), 0, "vp_turns");
+        Assert.True(empty > almost, $"{empty} > {almost}");
+        Assert.True(almost > ready, $"{almost} > {ready}");
+        Assert.Equal(0, ready);
+        // Spending the settlement's brick and wood on a road pushes the point further away.
+        double afterRoad = F(Base().Hand(0, wool: 1, grain: 1).Build(), 0, "vp_turns");
+        Assert.True(afterRoad > ready);
+        // Nothing to build toward (no buildings at all): the cap.
+        Assert.Equal(Evaluator.VpTurnsCap, F(new StateBuilder(TestBoards.Standard).Build(), 1, "vp_turns"));
+    }
+
+    [Fact]
+    public void RoadEarlyStopsCountingAtFive()
+    {
+        var ring = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Vertex(0, 0, Corner.N))
+            .Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E), Edge(0, 0, Side.SE), Edge(0, 0, Side.SW), Edge(0, 0, Side.W), Edge(0, 0, Side.NW))
+            .Build();
+        Assert.Equal(6, F(ring, 0, "road_length"));
+        Assert.Equal(5, F(ring, 0, "road_early"));
+        var short2 = new StateBuilder(TestBoards.Standard).Settlement(0, Vertex(0, 0, Corner.N)).Roads(0, Edge(0, 0, Side.NE), Edge(0, 0, Side.E)).Build();
+        Assert.Equal(2, F(short2, 0, "road_early"));
+    }
+
+    [Fact]
+    public void KnightsHeldCountsOnlyKnightsInHand()
+    {
+        var s = new StateBuilder(TestBoards.Standard).DevCards(0, knight: 2, monopoly: 1, victoryPoint: 1).KnightsPlayed(0, 3).Build();
+        Assert.Equal(2, F(s, 0, "knights_held"));
+        Assert.Equal(0, F(s, 1, "knights_held"));
+    }
+
+    [Fact]
+    public void ArmyReachCountsKnightsStillToPlayAfterTheOnesInHand()
+    {
+        // Seat 0 played 1 and holds 1; seat 1 played 2: taking the army needs 3 played, so 2 more, one already in hand.
+        var s = new StateBuilder(TestBoards.Standard).KnightsPlayed(0, 1).DevCards(0, knight: 1).KnightsPlayed(1, 2).Build();
+        Assert.Equal(1, F(s, 0, "army_reach"));
+        Assert.Equal(1, F(s, 1, "army_reach")); // needs a 3rd, holds none
+        var holder = new StateBuilder(TestBoards.Standard).KnightsPlayed(0, 3).LargestArmyOwner(0).KnightsPlayed(1, 2).Build();
+        Assert.Equal(0, F(holder, 0, "army_reach"));
+        Assert.Equal(2, F(holder, 1, "army_reach")); // must pass 3: two more
+    }
+
+    [Fact]
+    public void PortCountCountsEachHarborOnce()
+    {
+        var s = new StateBuilder(TestBoards.Standard)
+            .Settlement(0, Topology.HarborVertices[0, 0])
+            .Settlement(0, Topology.HarborVertices[3, 0])
+            .Build();
+        Assert.Equal(2, F(s, 0, "port_count"));
+        Assert.Equal(0, F(s, 1, "port_count"));
+    }
+
     private static string RepoRoot([System.Runtime.CompilerServices.CallerFilePath] string path = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(path)!, "..", "..", ".."));
 }

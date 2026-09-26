@@ -30,6 +30,9 @@ public partial class PracticeScreen : Control
     }
 
     private PlacementCoach _coach = null!;
+
+    /// <summary>This opening's score is in your practice history (once per opening, however often the summary is redrawn).</summary>
+    private bool _recorded;
     private BotWeights _weights = null!;
     private BoardView _board = null!;
     private Label _situation = null!, _status = null!, _result = null!, _details = null!;
@@ -157,6 +160,7 @@ public partial class PracticeScreen : Control
         _practice = new OpeningPractice(_weights, BoardGenerator.Balanced(new Rng(_boardSeed)), GameSession.Options.ToSettings(),
             _setup.HumanSeat, _setup.BotSeed);
         _picks.Clear();
+        _recorded = false;
         _shown = null;
         _waiting = false;
         _continue.Visible = false;
@@ -302,7 +306,14 @@ public partial class PracticeScreen : Control
             return;
         _shown = null;
         double average = _picks.Average(p => p.Rating);
+        if (!_recorded)
+        {
+            _recorded = true;
+            GameSession.RecordScore(new PracticeResult(DateTime.Now, PracticeKind.Placement, average, _picks.Count, _picks.Count(p => p.Rank == 1)));
+        }
         _result.Text = $"Your opening: average rating {average:F0}";
+        if (GameSession.History.Describe(PracticeKind.Placement) is { } history)
+            _result.Text += $"\nYour placement practice: {history}";
         var lines = new List<string>();
         int settlement = 0;
         foreach (var p in _picks)

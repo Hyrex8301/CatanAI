@@ -67,7 +67,7 @@ public sealed class DecisionCoach
         double best = scores.DefaultIfEmpty(0).Max(), worst = scores.DefaultIfEmpty(0).Min();
         var order = Enumerable.Range(0, legal.Count).OrderByDescending(i => scores[i]).ThenBy(i => i).ToList();
         var moves = order.Select((i, rank) => new MoveRating(legal[i], Describe(sample!, legal[i], names, me), scores[i] / samples,
-            best > worst ? 100 * (scores[i] - worst) / (best - worst) : 100, rank + 1, Reasons(sample!, legal[i], me, names))).ToList();
+            best > worst ? Math.Clamp(100 * (scores[i] - worst) / (best - worst), 0, 100) : 100, rank + 1, Reasons(sample!, legal[i], me, names))).ToList();
         bool close = moves.Count > 1 && moves[0].Score - moves[1].Score < CloseCallPoints * _weights["vp"];
         return new DecisionGrade(moves, close);
     }
@@ -197,6 +197,10 @@ public sealed class DecisionCoach
         "knights" or "army_gap" => "closer to Largest Army",
         "robber_blocked" or "knight_blocked" => "gets the robber off your tiles",
         "strategy_focus" => "fits your plan",
+        "vp_turns" => "closer to your next point",
+        "road_early" => "a longer road toward new spots",
+        "army_reach" => "closer to Largest Army",
+        "port_count" => "a port for trading",
         _ => null,
     };
 

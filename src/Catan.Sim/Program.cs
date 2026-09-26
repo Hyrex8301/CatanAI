@@ -57,7 +57,7 @@ static class Sim
               think [--weights W.json] [--ms M] [--positions N]            search iterations a thinking time buys (all threads)
               deal [--seed S] [--weights W] [--out position.json]           a Position practice position
               talk "wheat nb?" ["don't block me" ...]                 how the chat reads each line (you are blue, talking to orange)
-              train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S]
+              train --out DIR [--hours H | --minutes M] [--generations G] [--from weights.json] [--threads T] [--seed S] [--min-scale M]
                                                                            self-play training; resumes if DIR has a checkpoint;
                                                                            Ctrl+C stops after the current generation
             """);
@@ -360,6 +360,7 @@ static class Sim
             MaxGenerations = o.Flag("generations") ? o.Int("generations", 1) : null,
             Threads = o.Int("threads", Math.Max(1, Environment.ProcessorCount - 2)),
             Seed = o.ULong("seed", 1),
+            MinScale = o.Flag("min-scale") ? double.Parse(o.String("min-scale", "0.5"), System.Globalization.CultureInfo.InvariantCulture) : 0.5,
         };
         var start = o.Flag("from") ? BotWeights.Load(o.String("from", "")) : new BotWeights();
 

@@ -16,6 +16,16 @@ public static class GameSession
     /// <summary>When set, the game scene starts from this saved position (Play → Position practice).</summary>
     public static Catan.Core.Position? StartPosition { get; set; }
 
+    /// <summary>Your practice and game review scores over time (the Play screen shows your form).</summary>
+    public static PracticeHistory History { get; } = new(ProjectSettings.GlobalizePath("user://practice_history.json"));
+
+    /// <summary>Adds a score to your history, except in developer screenshot runs (CATAN_SHOT), which aren't you playing.</summary>
+    public static void RecordScore(PracticeResult result)
+    {
+        if (string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("CATAN_SHOT")))
+            History.Add(result);
+    }
+
     /// <summary>Saves go in Godot's per-user data folder (on Windows: %APPDATA%\Godot\app_userdata\CatanAI\saves).</summary>
     public static SaveStore Store { get; } = new(ProjectSettings.GlobalizePath("user://saves"));
 
