@@ -326,7 +326,7 @@ public partial class GameScreen : Control
         if (System.Environment.GetEnvironmentVariable("CATAN_BOT") == "smart")
             return new SmartBot(BotWeightsFile(), SmartBotSettings.Play, seed) { Table = _talk };
         int ms = int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_THINK_MS"), out int t) && t > 0 ? t : _autoplayActions > 0 && !ForceAnimate ? 50 : 500;
-        var calibration = WinModel.Load(ProjectSettings.GlobalizePath("res://bots/calibration.json"));
+        var calibration = GameSession.BundledCalibration();
         return new SearchBot(BotWeightsFile(), calibration, new SearchSettings { ThinkMs = ms }, seed) { Table = _talk };
     }
 
@@ -344,11 +344,7 @@ public partial class GameScreen : Control
     private bool Fast => Autoplaying && !ForceAnimate;
 
     /// <summary>The trained weights shipped with the game (game/bots/best.json), or the hand-set defaults if there are none yet.</summary>
-    internal static BotWeights BotWeightsFile()
-    {
-        string path = ProjectSettings.GlobalizePath("res://bots/best.json");
-        return System.IO.File.Exists(path) ? BotWeights.Load(path) : new BotWeights();
-    }
+    internal static BotWeights BotWeightsFile() => GameSession.BundledWeights();
 
     /// <summary>The board: the one picked in the mode setup, or the game's own random one.</summary>
     private ulong BoardSeed => _options.BoardSeed ?? _setup.BoardSeed % 1_000_000; // short enough to type back in

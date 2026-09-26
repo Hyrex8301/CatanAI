@@ -26,3 +26,6 @@ game/scenes/Main.tscn
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Exported game builds (zip and share these, never commit them)
+/build/

@@ -60,8 +60,7 @@ public partial class PracticeScreen : Control
         MouseFilter = MouseFilterEnum.Ignore; // let clicks through to the board (the panel still stops the ones over it)
         AddChild(new SeaView());
 
-        string weightsPath = ProjectSettings.GlobalizePath("res://bots/best.json");
-        _weights = System.IO.File.Exists(weightsPath) ? BotWeights.Load(weightsPath) : new BotWeights();
+        _weights = GameSession.BundledWeights();
         _coach = new PlacementCoach(_weights);
 
         _board = new BoardView { HoverTargetsOnly = true };

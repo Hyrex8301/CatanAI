@@ -103,6 +103,13 @@ public partial class Menu : Control
             Toggle(_settings, FillSettings); // developer screenshots
         if (System.Environment.GetEnvironmentVariable("CATAN_SHOW_MODES") == "1")
             Toggle(_modes, FillModes);
+        // Developer checks of an exported build (which can't be started on another scene): CATAN_START_MODE=N starts the
+        // Nth mode under Play right away (0 normal game, 1 placement practice, 2 position practice).
+        if (int.TryParse(System.Environment.GetEnvironmentVariable("CATAN_START_MODE"), out int mode) && mode >= 0 && mode < GameModes.All.Count)
+        {
+            Callable.From(() => GameModes.All[mode].Start(GetTree())).CallDeferred();
+            return;
+        }
         DevShots.Run(this);
     }
 

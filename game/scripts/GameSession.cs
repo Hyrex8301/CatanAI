@@ -7,6 +7,27 @@ public static class GameSession
 {
     private static readonly string SettingsPath = ProjectSettings.GlobalizePath("user://settings.json");
 
+    /// <summary>
+    /// The trained weights shipped with the game (res://bots/best.json), or the hand-set defaults if the file is missing.
+    /// Read through Godot's FileAccess, not System.IO: in an exported game res:// lives inside the .pck, not on disk.
+    /// </summary>
+    public static Catan.AI.BotWeights BundledWeights() =>
+        ReadBundled("res://bots/best.json") is { } json ? Catan.AI.BotWeights.FromJson(json) : new Catan.AI.BotWeights();
+
+    /// <summary>The win-chance calibration shipped with the game (res://bots/calibration.json), or the default.</summary>
+    public static Catan.AI.WinModel BundledCalibration() =>
+        ReadBundled("res://bots/calibration.json") is { } json ? Catan.AI.WinModel.FromJson(json) : Catan.AI.WinModel.Default;
+
+    private static string? ReadBundled(string path)
+    {
+        if (!FileAccess.FileExists(path))
+        {
+            GD.PushWarning($"{path} is missing: the bots use their default weights.");
+            return null;
+        }
+        return FileAccess.GetFileAsString(path);
+    }
+
     /// <summary>The player's settings, loaded from the last session (defaults the first time).</summary>
     public static GameOptions Options { get; set; } = GameOptions.FromJson(System.IO.File.Exists(SettingsPath) ? System.IO.File.ReadAllText(SettingsPath) : null);
 
